@@ -1,0 +1,2877 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>Ô Chữ Hóa Học 12: SỢI POLYMER — Lê Hữu Nam</title>
+
+  <!-- Google Fonts chuẩn tiếng Việt NFC: Playfair Display, Lora, Be Vietnam Pro, Dancing Script -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Dancing+Script:wght@600;700&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Playfair Display"', 'Georgia', 'serif'],
+            letter: ['"Lora"', 'Georgia', 'serif'],
+            script: ['"Dancing Script"', 'cursive'],
+            sans: ['"Be Vietnam Pro"', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          colors: {
+            velvet: {
+              950: '#18040a',
+              900: '#22060e',
+              850: '#2a0811',
+              800: '#380b18',
+              750: '#48101f',
+              700: '#5c1528',
+              600: '#721b33',
+            },
+            champagne: {
+              pearl: '#fffdf8',
+              cream: '#f9f1e2',
+              soft: '#f2e4cc',
+              bright: '#f7e1a8',
+              light: '#e3c178',
+              gold: '#c59b49',
+              bronze: '#9e762a',
+              rose: '#efd0d8',
+            },
+            wineink: {
+              deep: '#2b1017',
+              mid: '#4e202c',
+              soft: '#7b4956',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* =========================================================================
+       1. GIAO DIỆN NHUNG ĐỎ RƯỢU VANG — VÀNG CHAMPAGNE — KEM NGỌC TRAI (60–120 FPS)
+       - Không sử dụng backdrop-filter, không dùng filter: blur/drop-shadow động
+       - Toàn bộ hoạt ảnh chạy thuần GPU (transform: translate3d/scale/rotateY & opacity)
+       - Kiểu chữ thẳng, sắc nét, cân đối và độ tương phản cực cao
+    ========================================================================= */
+    :root {
+      --gold-text-grad: linear-gradient(118deg, #c59b49 0%, #f3d794 30%, #fffaf0 50%, #e3c178 72%, #b58732 100%);
+      --wine-heading-grad: linear-gradient(118deg, #48101f 0%, #7a1c36 44%, #a87b29 78%, #48101f 100%);
+      --velvet-surface: linear-gradient(162deg, #3c0c1a 0%, #24060f 100%);
+      --cream-surface: linear-gradient(170deg, #fffdf8 0%, #fcf6ea 56%, #f9f1e2 100%);
+      --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100vh;
+      background-color: #22060e;
+      color: #fffdf8;
+      font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Hậu cảnh Nhung Đỏ Rượu Vang trầm sang trọng (#2a0811 -> #48101f -> #22060e) */
+    .velvet-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      contain: strict;
+      background:
+        radial-gradient(ellipse 62% 46% at 50% 45%, rgba(227, 193, 120, 0.13) 0%, rgba(114, 27, 51, 0.18) 45%, transparent 74%),
+        radial-gradient(ellipse 46% 36% at 14% 14%, rgba(247, 225, 168, 0.08) 0%, transparent 66%),
+        radial-gradient(ellipse 46% 36% at 86% 86%, rgba(239, 208, 216, 0.07) 0%, transparent 68%),
+        linear-gradient(155deg, #2a0811 0%, #48101f 48%, #22060e 100%);
+    }
+
+    /* Watermark chữ nhỏ NẰM NGANG thẳng hàng (0 độ, không xoay chéo) lặp đều tên "Lê Hữu Nam" */
+    .author-watermark-horizontal {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      contain: strict;
+      opacity: 0.075;
+    }
+
+    /* Lớp trang trí Hóa học 12 SVG tĩnh nét mảnh ở 4 góc nền */
+    .chem-decor-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      overflow: hidden;
+      contain: strict;
+    }
+
+    /* Canvas hiệu ứng 60–120 FPS duy nhất, khóa cứng dpr = 1 */
+    #fxCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+      pointer-events: none;
+      contain: strict;
+    }
+
+    /* Chữ ánh vàng champagne trên nền tối & chữ rượu vang ánh đồng trên nền kem */
+    .gold-shimmer-text {
+      background: var(--gold-text-grad);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .wine-heading-text {
+      background: var(--wine-heading-grad);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    /* Khung Nhung Đỏ & Thẻ Kem Ngọc Trai viền kép Vàng Champagne */
+    .velvet-panel {
+      position: relative;
+      background: var(--velvet-surface);
+      border: 1.5px solid rgba(227, 193, 120, 0.55);
+      box-shadow: 0 18px 42px rgba(14, 2, 6, 0.52);
+      contain: layout style paint;
+    }
+
+    .velvet-inner-rim {
+      position: absolute;
+      inset: 6px;
+      border-radius: 18px;
+      border: 1px solid rgba(227, 193, 120, 0.22);
+      pointer-events: none;
+    }
+
+    .cream-card {
+      position: relative;
+      background: var(--cream-surface);
+      border: 2px solid #c59b49;
+      color: #2b1017;
+      box-shadow: 0 24px 60px rgba(14, 2, 6, 0.68), 0 0 0 1px rgba(247, 225, 168, 0.28);
+      contain: layout style paint;
+    }
+
+    .cream-double-rim {
+      position: absolute;
+      inset: 8px;
+      border-radius: 20px;
+      border: 1.3px solid rgba(197, 155, 73, 0.68);
+      pointer-events: none;
+    }
+
+    .cream-double-rim::after {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border-radius: 16px;
+      border: 1px dashed rgba(158, 118, 42, 0.34);
+    }
+
+    /* =========================================================================
+       2. CHUYỂN CẢNH TẦNG 1 -> TẦNG 2 (FADE + SCALE MƯỢT MÀ, KHÔNG DÙNG RÈM TÁCH ĐÔI)
+    ========================================================================= */
+    #readyGate {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background:
+        radial-gradient(ellipse 65% 50% at 50% 45%, rgba(227, 193, 120, 0.14) 0%, transparent 72%),
+        linear-gradient(155deg, #2a0811 0%, #48101f 48%, #22060e 100%);
+      transition: opacity 0.52s var(--ease-smooth), transform 0.52s var(--ease-smooth);
+      will-change: opacity, transform;
+    }
+
+    #readyGate.is-exiting {
+      opacity: 0;
+      transform: scale(1.03);
+      pointer-events: none;
+    }
+
+    #mainStage {
+      opacity: 0;
+      transform: translate3d(0, 12px, 0) scale(0.985);
+      transition: opacity 0.56s var(--ease-smooth), transform 0.56s var(--ease-smooth);
+      will-change: opacity, transform;
+    }
+
+    #mainStage.is-visible {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    /* =========================================================================
+       3. TẦNG 2 — BẢNG 10 HÀNG NGANG x 14 CỘT CỠ LỚN CĂN GIỮA (LẬT 3D GPU)
+    ========================================================================= */
+    .board-wrapper {
+      --tile-size: clamp(29px, min(5.5vw, 6.2vh), 58px);
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(4px, 0.68vh, 8px);
+    }
+
+    .cw-row {
+      display: grid;
+      grid-template-columns: calc(var(--tile-size) * 1.15) repeat(14, var(--tile-size));
+      gap: clamp(4px, 0.54vw, 7px);
+      align-items: center;
+      padding: 3px 6px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .cw-row:hover {
+      background-color: rgba(247, 225, 168, 0.08);
+      border-color: rgba(227, 193, 120, 0.34);
+    }
+
+    .cw-row.is-solved {
+      background-color: rgba(16, 185, 129, 0.08);
+    }
+
+    .row-index-btn {
+      height: var(--tile-size);
+      border-radius: 10px;
+      font-family: 'Playfair Display', Georgia, serif;
+      font-weight: 700;
+      font-size: clamp(13px, 1.38vw, 19px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: linear-gradient(155deg, #5c1528 0%, #2f0914 100%);
+      color: #f7e1a8;
+      border: 1.5px solid #c59b49;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.32);
+      transition: transform 0.16s var(--ease-smooth), border-color 0.16s ease, filter 0.16s ease;
+      will-change: transform;
+    }
+
+    .row-index-btn:hover {
+      transform: scale(1.06);
+      border-color: #fffdf8;
+      filter: brightness(1.14);
+    }
+
+    .row-index-btn:active {
+      transform: scale(0.95);
+    }
+
+    .cw-row.is-solved .row-index-btn {
+      background: linear-gradient(145deg, #0f766e 0%, #10b981 100%);
+      color: #ffffff;
+      border-color: #a7f3d0;
+    }
+
+    .cw-row.is-revealed-only .row-index-btn {
+      background: linear-gradient(145deg, #6d3d4b 0%, #48232e 100%);
+      color: #f9f1e2;
+      border-color: #e3c178;
+    }
+
+    .cw-spacer {
+      width: var(--tile-size);
+      height: var(--tile-size);
+      pointer-events: none;
+    }
+
+    /* Ô chữ lật 3D mượt bằng CSS transform */
+    .tile-scene {
+      width: var(--tile-size);
+      height: var(--tile-size);
+      perspective: 720px;
+      cursor: pointer;
+      contain: layout style;
+    }
+
+    .tile-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.56s var(--ease-smooth);
+      will-change: transform;
+    }
+
+    .tile-scene.is-flipped .tile-inner {
+      transform: rotateY(180deg);
+    }
+
+    .tile-face {
+      position: absolute;
+      inset: 0;
+      border-radius: 10px;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+      user-select: none;
+      overflow: hidden;
+      contain: layout style paint;
+    }
+
+    /* Mặt úp: Nhung đỏ rượu vang viền vàng champagne */
+    .tile-front {
+      background: linear-gradient(155deg, #561325 0%, #2f0813 100%);
+      border: 1.5px solid rgba(227, 193, 120, 0.52);
+      color: rgba(247, 225, 168, 0.34);
+      font-size: clamp(10px, 1vw, 14px);
+    }
+
+    .cw-row:hover .tile-front {
+      border-color: #f7e1a8;
+    }
+
+    /* Cột từ khóa hàng dọc (index 5 — SỢI POLYMER) mặt úp: viền vàng champagne nổi bật */
+    .tile-scene.is-key-col .tile-front {
+      background: linear-gradient(155deg, #83591b 0%, #472e0b 100%);
+      border: 2px solid #f7e1a8;
+      color: #f7e1a8;
+      box-shadow: inset 0 0 10px rgba(247, 225, 168, 0.24);
+    }
+
+    /* Mặt ngửa: Kem ngọc trai chữ nâu rượu đậm (#2b1017) cực rõ */
+    .tile-back {
+      transform: rotateY(180deg);
+      background: linear-gradient(160deg, #fffdf8 0%, #f6ebd6 100%);
+      border: 2px solid #c59b49;
+      color: #2b1017;
+      font-weight: 800;
+      font-size: clamp(14px, calc(var(--tile-size) * 0.48), 27px);
+    }
+
+    .cw-row.is-revealed-only .tile-back {
+      background: linear-gradient(160deg, #f8f0ec 0%, #ecded9 100%);
+      border-color: #c28e9b;
+      color: #4e202c;
+    }
+
+    /* Mặt ngửa cột Từ Khóa hàng dọc: Vàng champagne nổi bật */
+    .tile-scene.is-key-col .tile-back {
+      background: linear-gradient(145deg, #d4a03a 0%, #f1d48a 50%, #fff8df 100%) !important;
+      border: 2.2px solid #fffdf8 !important;
+      color: #22060e !important;
+      font-weight: 900;
+    }
+
+    .tile-scene.is-victory-key .tile-inner {
+      animation: victoryKeyPulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes victoryKeyPulse {
+      0%, 100% { transform: rotateY(180deg) scale(1); }
+      50% { transform: rotateY(180deg) scale(1.08); }
+    }
+
+    /* Huy hiệu nhỏ 'Ợ' ở hàng 2 khi giải xong Từ Khóa */
+    .tone-note-badge {
+      position: absolute;
+      top: -4px;
+      right: -3px;
+      font-size: 10px;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 5px;
+      background: #721b33;
+      color: #fffdf8;
+      border: 1.2px solid #f7e1a8;
+      font-weight: 800;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: opacity 0.28s var(--ease-smooth), transform 0.28s var(--ease-smooth);
+    }
+
+    .tile-scene.show-tone-badge .tone-note-badge {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* =========================================================================
+       4. TẦNG 3 — CỬA SỔ SPOTLIGHT CÂU HỎI & TỪ KHÓA + LIVE LETTER SLOTS + AI MIC
+    ========================================================================= */
+    .modal-backdrop {
+      background: rgba(18, 3, 8, 0.84);
+    }
+
+    .modal-pop {
+      animation: modalFadePop 0.3s var(--ease-smooth) forwards;
+      will-change: transform, opacity;
+    }
+
+    @keyframes modalFadePop {
+      0% { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.96); }
+      100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    }
+
+    /* Dãy Ô Chữ Xem Trước Trực Tiếp (Live Letter Slots) */
+    .live-slot {
+      position: relative;
+      width: clamp(34px, 5.2vw, 56px);
+      height: clamp(38px, 5.6vw, 60px);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+      font-weight: 800;
+      font-size: clamp(16px, 2.15vw, 26px);
+      background: #fffdf8;
+      border: 2px solid #c59b49;
+      color: #2b1017;
+      box-shadow: 0 3px 8px rgba(43, 16, 23, 0.08);
+      transition: transform 0.2s var(--ease-smooth), background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+      will-change: transform;
+    }
+
+    .live-slot.is-key {
+      border-color: #b58732;
+      background: linear-gradient(160deg, #fffcf2 0%, #f8e9c4 100%);
+      box-shadow: 0 0 0 2px rgba(227, 193, 120, 0.55);
+    }
+
+    .live-slot.is-hearing {
+      border-color: #721b33;
+      background: #fff7f9;
+      color: #48101f;
+      transform: scale(1.04);
+    }
+
+    .live-slot.is-correct {
+      background: linear-gradient(150deg, #059669 0%, #10b981 100%) !important;
+      border-color: #065f46 !important;
+      color: #ffffff !important;
+      transform: scale(1.06);
+    }
+
+    .live-slot.is-key.is-correct {
+      background: linear-gradient(150deg, #d4a03a 0%, #f3d794 50%, #fff8df 100%) !important;
+      border-color: #9e762a !important;
+      color: #22060e !important;
+    }
+
+    .live-slot.is-wrong {
+      background: #fff1f2 !important;
+      border-color: #be123c !important;
+      color: #9f1239 !important;
+    }
+
+    .live-slot-star {
+      position: absolute;
+      top: -9px;
+      right: -6px;
+      width: 19px;
+      height: 19px;
+      border-radius: 9999px;
+      background: linear-gradient(135deg, #c59b49 0%, #f7e1a8 100%);
+      color: #22060e;
+      border: 1.5px solid #fffdf8;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+    }
+
+    @keyframes shakeSlots {
+      0%, 100% { transform: translate3d(0, 0, 0); }
+      20% { transform: translate3d(-7px, 0, 0); }
+      40% { transform: translate3d(7px, 0, 0); }
+      60% { transform: translate3d(-4px, 0, 0); }
+      80% { transform: translate3d(4px, 0, 0); }
+    }
+
+    .anim-shake {
+      animation: shakeSlots 0.36s ease-in-out;
+    }
+
+    /* Đồng hồ vòng tròn SVG 15 giây */
+    .timer-ring-progress {
+      transition: stroke-dashoffset 0.3s linear, stroke 0.25s ease;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+
+    /* Sóng âm thanh Mic thu âm (GPU scaleY) */
+    .mic-wave-bar {
+      width: 4px;
+      height: 20px;
+      border-radius: 999px;
+      background: #9f1239;
+      transform-origin: center center;
+      transform: scaleY(0.28);
+      will-change: transform;
+    }
+
+    .is-listening .mic-wave-bar:nth-child(1) { animation: micBounce 0.62s ease-in-out infinite; }
+    .is-listening .mic-wave-bar:nth-child(2) { animation: micBounce 0.48s ease-in-out 0.12s infinite; }
+    .is-listening .mic-wave-bar:nth-child(3) { animation: micBounce 0.72s ease-in-out 0.22s infinite; }
+    .is-listening .mic-wave-bar:nth-child(4) { animation: micBounce 0.54s ease-in-out 0.08s infinite; }
+    .is-listening .mic-wave-bar:nth-child(5) { animation: micBounce 0.66s ease-in-out 0.18s infinite; }
+
+    @keyframes micBounce {
+      0%, 100% { transform: scaleY(0.25); }
+      50% { transform: scaleY(1); }
+    }
+
+    /* Nút bấm thanh lịch */
+    .btn-smooth {
+      transition: transform 0.16s var(--ease-smooth), filter 0.16s ease;
+      will-change: transform;
+    }
+    .btn-smooth:hover { transform: translate3d(0, -1px, 0); filter: brightness(1.06); }
+    .btn-smooth:active { transform: scale(0.96); }
+
+    .btn-champagne {
+      background: linear-gradient(112deg, #c59b49 0%, #efd28c 38%, #fff8e2 56%, #d9b15d 84%, #efd28c 100%);
+      color: #22060e;
+      border: 1.6px solid #fffdf8;
+      box-shadow: 0 10px 24px rgba(14, 2, 6, 0.42);
+    }
+
+    .btn-burgundy {
+      background: linear-gradient(155deg, #5c1528 0%, #300914 100%);
+      color: #fffdf8;
+      border: 1.5px solid #e3c178;
+      box-shadow: 0 8px 20px rgba(14, 2, 6, 0.38);
+    }
+
+    .btn-mic-live {
+      background: linear-gradient(135deg, #9f1239 0%, #be123c 55%, #881337 100%) !important;
+      color: #fffdf8 !important;
+      border-color: #f7e1a8 !important;
+    }
+
+    /* Chế độ Siêu Nhẹ */
+    body.lite-mode .tile-scene.is-victory-key .tile-inner {
+      animation: none !important;
+    }
+
+    /* Toast thông báo (thay thế hoàn toàn alert/confirm) */
+    #toastBox {
+      transition: opacity 0.25s ease, transform 0.25s var(--ease-smooth);
+      will-change: transform, opacity;
+    }
+    #toastBox.toast-hide {
+      opacity: 0;
+      transform: translate3d(-50%, 14px, 0) scale(0.95);
+      pointer-events: none;
+    }
+    #toastBox.toast-show {
+      opacity: 1;
+      transform: translate3d(-50%, 0, 0) scale(1);
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #22060e; }
+    ::-webkit-scrollbar-thumb { background: #6b1a30; border-radius: 999px; }
+  </style>
+</head>
+<body class="selection:bg-champagne-light/40 selection:text-velvet-950">
+
+  <!-- 1. HẬU CẢNH NHUNG ĐỎ RƯỢU VANG -->
+  <div class="velvet-backdrop" aria-hidden="true"></div>
+
+  <!-- 2. WATERMARK CHỮ NHỎ NẰM NGANG THẲNG HÀNG (0 ĐỘ) LẶP ĐỀU "Lê Hữu Nam" -->
+  <div class="author-watermark-horizontal" aria-hidden="true">
+    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="horizontalAuthorPattern" width="260" height="72" patternUnits="userSpaceOnUse">
+          <text x="16" y="26" fill="#f7e1a8" font-family="Be Vietnam Pro, system-ui, sans-serif" font-size="12.5" font-weight="600" letter-spacing="1.6">
+            Lê Hữu Nam
+          </text>
+          <text x="144" y="58" fill="#e3c178" font-family="Be Vietnam Pro, system-ui, sans-serif" font-size="12" font-weight="500" letter-spacing="1.6">
+            Lê Hữu Nam
+          </text>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#horizontalAuthorPattern)" />
+    </svg>
+  </div>
+
+  <!-- 3. TRANG TRÍ HÓA HỌC NÉT MẢNH SVG TĨNH Ở 4 GÓC NỀN -->
+  <div class="chem-decor-layer" aria-hidden="true">
+    <!-- Góc trên trái: Vòng lục giác Benzen + Công thức Cellulose (C₆H₁₀O₅)ₙ -->
+    <svg class="absolute -top-4 -left-4 w-64 sm:w-80 h-64 sm:h-80 opacity-[0.18]" viewBox="0 0 320 320" fill="none">
+      <polygon points="86,44 124,66 124,110 86,132 48,110 48,66" stroke="#f7e1a8" stroke-width="1.35"/>
+      <circle cx="86" cy="88" r="23" stroke="#c59b49" stroke-width="1" stroke-dasharray="5 4"/>
+      <polygon points="162,88 200,110 200,154 162,176 124,154 124,110" stroke="#e3c178" stroke-width="1.2"/>
+      <circle cx="162" cy="132" r="21" stroke="#c59b49" stroke-width="0.95"/>
+      <line x1="200" y1="110" x2="240" y2="88" stroke="#f7e1a8" stroke-width="1.1"/>
+      <circle cx="244" cy="86" r="3.4" fill="#f7e1a8"/>
+      <text x="164" y="54" fill="#f7e1a8" font-family="Lora, Georgia, serif" font-style="italic" font-size="13.5">(C₆H₁₀O₅)ₙ</text>
+      <text x="26" y="210" fill="#e3c178" font-family="Lora, Georgia, serif" font-style="italic" font-size="12.5">C₆H₆ • t°, xt</text>
+    </svg>
+
+    <!-- Góc trên phải: Bình tam giác Erlenmeyer + Mạch polymer [—NH—(CH₂)₅—CO—]ₙ -->
+    <svg class="absolute -top-3 -right-4 w-64 sm:w-80 h-64 sm:h-80 opacity-[0.18]" viewBox="0 0 320 320" fill="none">
+      <path d="M206 56H242" stroke="#f7e1a8" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M212 56V96L176 172C171 182 178 194 190 194H258C270 194 277 182 272 172L236 96V56" stroke="#f7e1a8" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M192 150C206 144 220 156 234 150C246 145 254 148 260 151" stroke="#efd0d8" stroke-width="1.2"/>
+      <circle cx="222" cy="166" r="3" stroke="#f7e1a8" stroke-width="1.1"/>
+      <circle cx="235" cy="136" r="2.2" stroke="#f7e1a8" stroke-width="1"/>
+      <circle cx="224" cy="38" r="3" stroke="#f7e1a8" stroke-width="1"/>
+      <circle cx="233" cy="24" r="2" stroke="#e3c178" stroke-width="1"/>
+      <text x="116" y="232" fill="#f7e1a8" font-family="Lora, Georgia, serif" font-style="italic" font-size="12.5">[—NH—(CH₂)₅—CO—]ₙ</text>
+    </svg>
+
+    <!-- Góc dưới trái: Quỹ đạo nguyên tử thanh lịch -->
+    <svg class="absolute -bottom-6 -left-6 w-60 h-56 opacity-[0.18]" viewBox="0 0 260 240" fill="none">
+      <g transform="translate(106, 134)">
+        <ellipse cx="0" cy="0" rx="56" ry="20" transform="rotate(28)" stroke="#f7e1a8" stroke-width="1.2"/>
+        <ellipse cx="0" cy="0" rx="56" ry="20" transform="rotate(-32)" stroke="#e3c178" stroke-width="1.2"/>
+        <ellipse cx="0" cy="0" rx="56" ry="20" transform="rotate(88)" stroke="#c59b49" stroke-width="1.1"/>
+        <circle cx="0" cy="0" r="5" fill="#f7e1a8"/>
+        <circle cx="48" cy="22" r="2.6" fill="#fffdf8"/>
+      </g>
+    </svg>
+
+    <!-- Góc dưới phải: Vòng Benzen + Ống nghiệm -->
+    <svg class="absolute -bottom-6 -right-4 w-64 h-60 opacity-[0.18]" viewBox="0 0 270 250" fill="none">
+      <g transform="rotate(16 196 146)">
+        <path d="M180 86H212" stroke="#f7e1a8" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M185 86V184C185 191.5 190 197 196 197C202 197 207 191.5 207 184V86" stroke="#f7e1a8" stroke-width="1.4"/>
+        <path d="M186 148C192 145 200 151 206 147" stroke="#efd0d8" stroke-width="1.15"/>
+        <circle cx="195" cy="166" r="2.2" stroke="#f7e1a8" stroke-width="1"/>
+      </g>
+      <polygon points="108,130 138,148 138,182 108,200 78,182 78,148" stroke="#c59b49" stroke-width="1.2"/>
+      <circle cx="108" cy="165" r="16" stroke="#f7e1a8" stroke-width="0.95" stroke-dasharray="4 3"/>
+    </svg>
+  </div>
+
+  <!-- 4. CANVAS 60–120 FPS (KHÓA DPR = 1, 4 OFFSCREEN SPRITES 32x32, OBJECT POOL) -->
+  <canvas id="fxCanvas" aria-hidden="true"></canvas>
+
+  <!-- 5. TOAST THÔNG BÁO (KHÔNG DÙNG ALERT / CONFIRM) -->
+  <div id="toastBox" role="status" aria-live="polite" class="toast-hide fixed bottom-5 left-1/2 z-[60] px-5 py-2.5 rounded-full bg-velvet-900 border border-champagne-light text-champagne-pearl text-xs sm:text-sm font-semibold shadow-2xl whitespace-nowrap max-w-[92vw] truncate">
+    Chào mừng đến với Ô Chữ Hóa Học 12 — SỢI POLYMER
+  </div>
+
+  <!-- =========================================================================
+       TẦNG 1 — MÀN HÌNH SẴN SÀNG TOÀN MÀN HÌNH (CHE KÍN BẢNG PHÍA SAU)
+  ========================================================================= -->
+  <section id="readyGate">
+    <div class="cream-card rounded-3xl max-w-3xl w-full p-7 sm:p-11 text-center relative overflow-hidden">
+      <div class="cream-double-rim" aria-hidden="true"></div>
+
+      <!-- 4 góc hoa văn Benzen mảnh -->
+      <svg class="w-12 h-12 sm:w-14 sm:h-14 absolute top-4 left-4 text-champagne-bronze/80 pointer-events-none" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <path d="M6 52V14C6 9.58 9.58 6 14 6H52" stroke="currentColor" stroke-width="1.6"/>
+        <polygon points="21,12 29,16.5 29,25.5 21,30 13,25.5 13,16.5" stroke="currentColor" stroke-width="1.25"/>
+      </svg>
+      <svg class="w-12 h-12 sm:w-14 sm:h-14 absolute top-4 right-4 text-champagne-bronze/80 pointer-events-none scale-x-[-1]" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <path d="M6 52V14C6 9.58 9.58 6 14 6H52" stroke="currentColor" stroke-width="1.6"/>
+        <polygon points="21,12 29,16.5 29,25.5 21,30 13,25.5 13,16.5" stroke="currentColor" stroke-width="1.25"/>
+      </svg>
+      <svg class="w-12 h-12 sm:w-14 sm:h-14 absolute bottom-4 left-4 text-champagne-bronze/80 pointer-events-none scale-y-[-1]" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <path d="M6 52V14C6 9.58 9.58 6 14 6H52" stroke="currentColor" stroke-width="1.6"/>
+        <polygon points="21,12 29,16.5 29,25.5 21,30 13,25.5 13,16.5" stroke="currentColor" stroke-width="1.25"/>
+      </svg>
+      <svg class="w-12 h-12 sm:w-14 sm:h-14 absolute bottom-4 right-4 text-champagne-bronze/80 pointer-events-none scale-x-[-1] scale-y-[-1]" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <path d="M6 52V14C6 9.58 9.58 6 14 6H52" stroke="currentColor" stroke-width="1.6"/>
+        <polygon points="21,12 29,16.5 29,25.5 21,30 13,25.5 13,16.5" stroke="currentColor" stroke-width="1.25"/>
+      </svg>
+
+      <!-- Biểu tượng bình tam giác Hóa học & nhãn môn học -->
+      <div class="relative z-10 flex flex-col items-center mb-4">
+        <svg class="w-14 h-14 mb-2" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <path d="M25 11H39" stroke="#9e762a" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M27.5 11V24L16 46.5C14.4 49.6 16.6 53 20.1 53H43.9C47.4 53 49.6 49.6 48 46.5L36.5 24V11" stroke="#48101f" stroke-width="2" stroke-linejoin="round" fill="#fffdf8"/>
+          <path d="M21.2 38.5H42.8L46.6 46.5C47.5 48.4 46.1 50.6 44 50.6H20C17.9 50.6 16.5 48.4 17.4 46.5L21.2 38.5Z" fill="#721b33" fill-opacity="0.22"/>
+          <circle cx="30" cy="44" r="2.3" fill="#c59b49"/>
+          <circle cx="36" cy="34" r="1.8" fill="#48101f"/>
+        </svg>
+        <span class="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-velvet-750 text-champagne-bright text-[11px] sm:text-xs font-bold tracking-[0.2em] uppercase border border-champagne-gold/70">
+          TRÒ CHƠI Ô CHỮ TƯƠNG TÁC • HÓA HỌC 12
+        </span>
+      </div>
+
+      <!-- Tiêu đề chương trình -->
+      <h1 class="relative z-10 font-display font-bold text-3xl sm:text-5xl wine-heading-text leading-tight tracking-tight">
+        Ô CHỮ HÓA HỌC 12<br />
+        <span class="text-xl sm:text-3xl font-bold">CHỦ ĐỀ: TƠ &amp; VẬT LIỆU POLYMER</span>
+      </h1>
+
+      <!-- Tóm tắt luật chơi 3 ý gọn đẹp -->
+      <div class="relative z-10 mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+        <div class="p-4 rounded-2xl bg-champagne-soft/65 border border-champagne-gold/60">
+          <div class="font-display font-bold text-base text-velvet-700">10 Hàng Ngang Tự Do</div>
+          <p class="text-xs text-wineink-mid mt-1 leading-relaxed">Chọn bất kỳ hàng 01–10 để mở câu hỏi cỡ đại, mỗi hàng đúng được +10 điểm.</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-champagne-soft/65 border border-champagne-gold/80">
+          <div class="font-display font-bold text-base text-velvet-700">Từ Khóa Dọc 10 Chữ</div>
+          <p class="text-xs text-wineink-mid mt-1 leading-relaxed">Giải mã từ khóa bí mật dọc cột vàng để nhận ngay +30 điểm &amp; pháo hoa.</p>
+        </div>
+        <div class="p-4 rounded-2xl bg-champagne-soft/65 border border-champagne-gold/60">
+          <div class="font-display font-bold text-base text-velvet-700">AI Nhận Diện Giọng Nói</div>
+          <p class="text-xs text-wineink-mid mt-1 leading-relaxed">Đọc trực tiếp qua Mic để AI tự điền vào ô, hoặc mở đáp án 1 chạm cực nhanh.</p>
+        </div>
+      </div>
+
+      <!-- Nút Sẵn Sàng & Xác nhận tác giả -->
+      <div class="relative z-10 mt-7 flex flex-col items-center gap-4">
+        <button id="btnReadyStart" type="button" class="btn-smooth btn-champagne px-9 sm:px-12 py-4 rounded-full font-display font-bold text-base sm:text-xl tracking-wide cursor-pointer">
+          ✨ SẴN SÀNG — MỞ BẢNG Ô CHỮ
+        </button>
+
+        <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-velvet-850 border border-champagne-light/70 text-xs sm:text-sm text-champagne-pearl shadow-lg">
+          <span class="text-champagne-rose font-medium">Thiết kế &amp; Lập trình:</span>
+          <strong class="font-bold text-champagne-bright tracking-wide">Lê Hữu Nam</strong>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       TẦNG 2 — BẢNG Ô CHỮ 10 HÀNG NGANG CỠ LỚN CĂN GIỮA TOÀN MÀN HÌNH
+  ========================================================================= -->
+  <div id="mainStage" class="hidden relative z-10 min-h-screen w-full max-w-[1540px] mx-auto px-3 sm:px-5 py-2.5 flex flex-col justify-between gap-2.5">
+
+    <!-- Thanh điều khiển trên cùng gọn gàng -->
+    <header class="velvet-panel rounded-2xl px-3.5 sm:px-5 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+      <!-- Trái: Tên chương trình & tác giả -->
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-champagne-bright via-champagne-light to-champagne-gold flex items-center justify-center shrink-0 shadow">
+          <svg class="w-6 h-6 text-velvet-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 3h6"/>
+            <path d="M10 3v5.4L4.7 18.2A2 2 0 0 0 6.5 21h11a2 2 0 0 0 1.8-2.8L14 8.4V3"/>
+            <path d="M7.5 15h9"/>
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <h2 class="font-display font-bold text-base sm:text-lg gold-shimmer-text leading-tight truncate">
+            Ô Chữ Hóa Học 12 — Tơ &amp; Polymer
+          </h2>
+          <p class="text-[11.5px] text-champagne-rose/95 truncate">
+            Thiết kế &amp; Lập trình: <strong class="text-champagne-bright font-semibold">Lê Hữu Nam</strong>
+          </p>
+        </div>
+      </div>
+
+      <!-- Giữa: Bảng điểm 4 tổ tương tác (bấm chọn tổ đang thi, +/- chỉnh điểm) -->
+      <div id="headerTeamsBar" class="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-center"></div>
+
+      <!-- Phải: Nhạc nền, SFX, FPS, Hiệu ứng Cao/Nhẹ, Giải Từ Khóa, Chơi Lại, Toàn Màn Hình -->
+      <div class="flex items-center gap-1.5 flex-wrap justify-end">
+        <button id="btnToggleBgm" type="button" class="btn-smooth px-2.5 py-1.5 rounded-full bg-velvet-700 border border-champagne-light/70 text-champagne-bright text-[11.5px] font-semibold cursor-pointer">
+          🎵 Nhạc nền: Bật
+        </button>
+        <button id="btnToggleSfx" type="button" class="btn-smooth px-2.5 py-1.5 rounded-full bg-velvet-800 border border-champagne-gold/50 text-champagne-pearl text-[11.5px] font-medium cursor-pointer">
+          🔊 SFX: Bật
+        </button>
+        <div id="fpsBadge" class="px-2.5 py-1.5 rounded-full bg-velvet-950 border border-champagne-gold/45 text-[11.5px] font-bold text-champagne-bright tabular-nums">
+          ⚡ 60 FPS
+        </div>
+        <button id="btnPerfMode" type="button" class="btn-smooth px-2.5 py-1.5 rounded-full bg-velvet-800 border border-champagne-gold/50 text-champagne-pearl text-[11.5px] font-medium cursor-pointer">
+          ✨ Hiệu ứng: Cao
+        </button>
+        <button id="btnOpenKeywordTop" type="button" class="btn-smooth btn-champagne px-3.5 py-1.5 rounded-full font-display font-bold text-xs tracking-wide cursor-pointer">
+          🔑 Giải Từ Khóa
+        </button>
+        <button id="btnOpenReset" type="button" class="btn-smooth px-2.5 py-1.5 rounded-full bg-velvet-800 border border-champagne-rose/45 text-champagne-rose text-[11.5px] font-medium cursor-pointer">
+          ↺ Chơi Lại
+        </button>
+        <button id="btnFullscreen" type="button" title="Toàn màn hình (Phím F)" class="btn-smooth px-3 py-1.5 rounded-full bg-velvet-750 border border-champagne-light/65 text-champagne-pearl text-[11.5px] font-semibold cursor-pointer">
+          ⛶ Toàn Màn Hình
+        </button>
+      </div>
+    </header>
+
+    <!-- Không gian trung tâm dành trọn cho 10 hàng ngang ô chữ cỡ lớn -->
+    <main class="flex-1 velvet-panel rounded-3xl px-3 sm:px-6 py-3.5 flex flex-col items-center justify-center relative overflow-x-auto">
+      <div class="velvet-inner-rim" aria-hidden="true"></div>
+
+      <div class="relative z-10 w-full flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-champagne-gold/25">
+        <div class="flex items-center gap-2 text-xs sm:text-sm">
+          <span class="px-3 py-0.5 rounded-full bg-velvet-700 border border-champagne-light/55 text-champagne-bright font-semibold text-xs">
+            Chọn Hàng 01 – 10
+          </span>
+          <span class="text-champagne-rose/90 text-xs sm:text-[13px]">
+            Bấm số hàng hoặc ô bất kỳ để mở câu hỏi cỡ lớn &amp; AI nhận diện giọng nói
+          </span>
+        </div>
+        <div id="keywordLivePreview" class="font-letter font-semibold text-xs sm:text-sm text-champagne-bright tracking-wider">
+          Từ khóa hàng dọc: ? ? ? • ? ? ? ? ? ? ?
+        </div>
+      </div>
+
+      <!-- Ma trận 10 hàng ngang x 14 cột -->
+      <div id="crosswordBoard" class="relative z-10 board-wrapper my-auto py-1"></div>
+    </main>
+
+    <!-- Chân trang hiển thị tiến độ & dấu ấn tác giả -->
+    <footer class="velvet-panel rounded-2xl px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-3">
+      <span id="solvedProgressText" class="px-3.5 py-1 rounded-full bg-velvet-800 border border-champagne-gold/55 text-xs sm:text-sm font-bold text-champagne-bright">
+        Đã mở: 0/10 hàng ngang
+      </span>
+
+      <button id="btnOpenKeywordFooter" type="button" class="btn-smooth btn-burgundy px-5 py-1.5 rounded-full font-display font-bold text-xs sm:text-sm tracking-wide cursor-pointer">
+        🔑 Bấm Chuông Giải Từ Khóa Hàng Dọc (+30đ)
+      </button>
+
+      <div class="inline-flex items-center gap-1.5 px-4 py-1 rounded-full bg-velvet-950/85 border border-champagne-light/45 text-xs sm:text-[13px] text-champagne-rose">
+        <span>Thiết kế &amp; Lập trình:</span>
+        <strong class="text-champagne-bright font-bold">Lê Hữu Nam</strong>
+      </div>
+    </footer>
+  </div>
+
+  <!-- =========================================================================
+       TẦNG 3 — CỬA SỔ SPOTLIGHT CÂU HỎI CỠ ĐẠI + AI NHẬN DIỆN GIỌNG NÓI
+  ========================================================================= -->
+  <div id="questionModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+    <div class="modal-pop cream-card rounded-3xl w-[94vw] sm:w-[88vw] max-w-[980px] p-5 sm:p-8 relative my-auto">
+      <div class="cream-double-rim" aria-hidden="true"></div>
+
+      <!-- Header Modal: Số hàng + Tổ trả lời + Vòng tròn đếm ngược 15 giây -->
+      <div class="relative z-10 flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-champagne-gold/50">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span id="modalRowBadge" class="px-4 py-1.5 rounded-full bg-velvet-800 text-champagne-bright font-display font-bold text-xs sm:text-sm tracking-wider uppercase">
+            HÀNG NGANG SỐ 01 • 5 CHỮ CÁI
+          </span>
+          <span id="modalCatBadge" class="px-3 py-1 rounded-full bg-champagne-soft border border-champagne-gold/75 text-xs font-bold text-velvet-700">
+            Tơ bán tổng hợp
+          </span>
+        </div>
+
+        <!-- Chọn nhanh tổ đang thi trong Modal -->
+        <div id="modalTeamSwitcher" class="flex items-center gap-1.5 flex-wrap"></div>
+
+        <!-- Vòng tròn đếm ngược 15 giây -->
+        <div class="flex items-center gap-3 bg-champagne-soft/80 border border-champagne-gold/75 rounded-2xl px-3.5 py-2">
+          <div class="relative w-14 h-14 flex items-center justify-center shrink-0">
+            <svg class="w-14 h-14" viewBox="0 0 60 60" aria-hidden="true">
+              <circle cx="30" cy="30" r="24" fill="#fffdf8" stroke="#e5cfa0" stroke-width="5" />
+              <circle id="timerRingCircle" class="timer-ring-progress" cx="30" cy="30" r="24" fill="none" stroke="#48101f" stroke-width="5.2" stroke-linecap="round" stroke-dasharray="150.796" stroke-dashoffset="0" />
+            </svg>
+            <span id="modalTimerNum" class="absolute font-display font-bold text-xl text-velvet-750 tabular-nums leading-none">15</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <button id="btnModalTimerToggle" type="button" class="btn-smooth px-3 py-1 rounded-lg bg-velvet-800 text-champagne-bright text-[11px] font-bold cursor-pointer">
+              ▶ Bắt đầu
+            </button>
+            <button id="btnModalTimerReset" type="button" class="btn-smooth px-3 py-1 rounded-lg bg-champagne-pearl border border-champagne-gold/80 text-wineink-mid text-[11px] font-bold cursor-pointer">
+              ↺ Đặt lại 15s
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Câu hỏi cỡ lớn đọc rõ từ cuối lớp -->
+      <div class="relative z-10 py-5 sm:py-6 px-2 text-center">
+        <p id="modalQuestionText" class="font-letter font-semibold text-wineink-deep leading-snug" style="font-size: clamp(1.25rem, 2.2vw, 1.85rem);">
+          Nội dung câu hỏi sẽ hiển thị tại đây.
+        </p>
+        <p id="modalFunFact" class="hidden mt-3 text-sm sm:text-base font-medium text-emerald-950 bg-emerald-50 border border-emerald-300 rounded-xl px-4 py-2.5 inline-block"></p>
+      </div>
+
+      <!-- Dãy Ô Chữ Xem Trước Trực Tiếp (Live Letter Slots) -->
+      <div class="relative z-10 flex flex-col items-center gap-2 pb-5">
+        <div id="modalLetterSlots" class="flex items-center justify-center flex-wrap gap-1.5 sm:gap-2.5"></div>
+        <span id="modalSlotCaption" class="text-xs font-medium text-wineink-soft">
+          Ô có biểu tượng ★ thuộc Từ khóa hàng dọc
+        </span>
+      </div>
+
+      <!-- Khu vực AI Nhận Diện Giọng Nói Tiếng Việt -->
+      <div class="relative z-10 p-4 rounded-2xl bg-champagne-soft/65 border border-champagne-gold/75 flex flex-col items-center gap-3">
+        <div class="flex flex-wrap items-center justify-center gap-3 w-full">
+          <button id="btnVoiceAnswer" type="button" class="btn-smooth btn-burgundy px-6 sm:px-8 py-3.5 rounded-full font-display font-bold text-sm sm:text-base tracking-wide cursor-pointer inline-flex items-center gap-2.5">
+            <span id="micBtnIcon">🎙️</span>
+            <span id="micBtnLabel">BẤM ĐỌC ĐÁP ÁN — AI TỰ NHẬN DIỆN</span>
+          </button>
+
+          <div id="micWaveWrap" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-300">
+            <span class="mic-wave-bar"></span>
+            <span class="mic-wave-bar"></span>
+            <span class="mic-wave-bar"></span>
+            <span class="mic-wave-bar"></span>
+            <span class="mic-wave-bar"></span>
+          </div>
+        </div>
+
+        <div id="aiStatusBanner" class="w-full text-center text-sm sm:text-base font-semibold text-wineink-mid min-h-[26px]">
+          Bấm nút Mic (hoặc phím Space) để học sinh đọc to đáp án — AI sẽ tự điền ô và kiểm tra ngay!
+        </div>
+
+        <!-- Danh sách các đáp án sai đã thử (đã loại trừ) -->
+        <div id="triedWrongsWrap" class="hidden w-full pt-2 border-t border-champagne-gold/45 flex flex-wrap items-center justify-center gap-1.5">
+          <span class="text-xs font-bold text-wineink-soft mr-1">Các đáp án đã thử (đã loại trừ):</span>
+          <div id="triedWrongsList" class="flex flex-wrap items-center justify-center gap-1.5"></div>
+        </div>
+      </div>
+
+      <!-- Hàng nút MC 1 chạm ngay bên dưới (không cần nhập tay) -->
+      <div class="relative z-10 mt-5 pt-4 border-t border-champagne-gold/45 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <button id="btnMcCorrect" type="button" class="btn-smooth btn-champagne py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm cursor-pointer">
+          ✅ Mở Đáp Án Đúng (+10đ)
+        </button>
+        <button id="btnMcNextStudent" type="button" class="btn-smooth py-2.5 px-3 rounded-xl bg-champagne-soft hover:bg-champagne-soft/80 border border-champagne-bronze/55 text-velvet-800 font-bold text-xs sm:text-sm cursor-pointer">
+          🔄 Mời Bạn Khác (Reset 15s)
+        </button>
+        <button id="btnMcRevealZero" type="button" class="btn-smooth py-2.5 px-3 rounded-xl bg-champagne-pearl hover:bg-champagne-soft border border-champagne-gold/75 text-wineink-mid font-bold text-xs sm:text-sm cursor-pointer">
+          👁️ Lật Đáp Án (0đ)
+        </button>
+        <button id="btnMcCloseModal" type="button" class="btn-smooth py-2.5 px-3 rounded-xl bg-velvet-900 hover:bg-velvet-800 border border-champagne-gold/55 text-champagne-pearl font-bold text-xs sm:text-sm cursor-pointer">
+          ✕ Đóng
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       CỬA SỔ SPOTLIGHT GIẢI TỪ KHÓA HÀNG DỌC ("SỢI POLYMER" +30Đ)
+  ========================================================================= -->
+  <div id="keywordModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+    <div class="modal-pop cream-card rounded-3xl w-[94vw] sm:w-[88vw] max-w-[960px] p-5 sm:p-8 relative my-auto text-center">
+      <div class="cream-double-rim" aria-hidden="true"></div>
+
+      <div class="relative z-10 flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-champagne-gold/50">
+        <span class="px-4 py-1.5 rounded-full bg-velvet-800 text-champagne-bright font-display font-bold text-xs sm:text-sm uppercase tracking-wider">
+          🔑 GIẢI TỪ KHÓA HÀNG DỌC • 10 CHỮ CÁI (+30Đ)
+        </span>
+        <div id="kwTeamSwitcher" class="flex items-center gap-1.5 flex-wrap"></div>
+      </div>
+
+      <div class="relative z-10 py-4">
+        <h3 class="font-display font-bold text-2xl sm:text-4xl wine-heading-text">
+          Từ Khóa Bí Mật Của Bảng Ô Chữ Là Gì?
+        </h3>
+        <p id="kwHintNote" class="font-letter text-sm sm:text-base text-wineink-mid mt-1.5">
+          Các chữ cái vàng đã lộ từ những hàng ngang đã mở được điền sẵn bên dưới!
+        </p>
+      </div>
+
+      <!-- 10 Ô Live Letter Slots cho "SỢI POLYMER" -->
+      <div id="kwLetterSlots" class="relative z-10 flex items-center justify-center flex-wrap gap-1.5 sm:gap-2 pb-5"></div>
+
+      <!-- Khu vực AI Nhận Diện Giọng Nói Từ Khóa -->
+      <div class="relative z-10 p-4 rounded-2xl bg-champagne-soft/65 border border-champagne-gold/75 flex flex-col items-center gap-3">
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          <button id="btnKwVoice" type="button" class="btn-smooth btn-burgundy px-6 sm:px-8 py-3.5 rounded-full font-display font-bold text-sm sm:text-base tracking-wide cursor-pointer inline-flex items-center gap-2.5">
+            <span id="kwMicIcon">🎙️</span>
+            <span id="kwMicLabel">BẤM ĐỌC TỪ KHÓA — AI TỰ NHẬN DIỆN</span>
+          </button>
+
+          <div id="kwWaveWrap" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-300">
+            <span class="mic-wave-bar"></span>
+            <span class="mic-wave-bar"></span>
+            <span class="mic-wave-bar"></span>
+            <span class="mic-wave-bar"></span>
+            <span class="mic-wave-bar"></span>
+          </div>
+        </div>
+
+        <div id="kwAiStatus" class="text-sm sm:text-base font-semibold text-wineink-mid min-h-[24px]">
+          Bấm nút Mic (hoặc phím Space) và đọc to Từ khóa 10 chữ cái!
+        </div>
+
+        <div id="kwTriedWrap" class="hidden w-full pt-2 border-t border-champagne-gold/45 flex flex-wrap items-center justify-center gap-1.5">
+          <span class="text-xs font-bold text-wineink-soft mr-1">Các từ khóa đã đoán sai (đã loại trừ):</span>
+          <div id="kwTriedList" class="flex flex-wrap items-center justify-center gap-1.5"></div>
+        </div>
+      </div>
+
+      <!-- Hàng nút MC 1 chạm cho Từ Khóa -->
+      <div class="relative z-10 mt-5 pt-4 border-t border-champagne-gold/45 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <button id="btnKwMcWin" type="button" class="btn-smooth btn-champagne py-3 px-4 rounded-xl font-extrabold text-xs sm:text-sm cursor-pointer">
+          ✅ Chính Xác (+30đ)
+        </button>
+        <button id="btnKwMcWrong" type="button" class="btn-smooth py-3 px-4 rounded-xl bg-champagne-soft hover:bg-champagne-soft/80 border border-rose-300 text-rose-900 font-bold text-xs sm:text-sm cursor-pointer">
+          ❌ Chưa Đúng (Mời Tổ Khác)
+        </button>
+        <button id="btnKwClose" type="button" class="btn-smooth py-3 px-4 rounded-xl bg-velvet-900 hover:bg-velvet-800 border border-champagne-gold/55 text-champagne-pearl font-bold text-xs sm:text-sm cursor-pointer">
+          ✕ Đóng
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL CHÚC MỪNG CHIẾN THẮNG & CHỐT ĐỊNH NGHĨA HÓA HỌC 12 VỀ TƠ
+  ========================================================================= -->
+  <div id="victoryModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 overflow-y-auto">
+    <div class="modal-pop cream-card rounded-3xl max-w-2xl w-full p-6 sm:p-9 text-center relative my-auto">
+      <div class="cream-double-rim" aria-hidden="true"></div>
+
+      <span class="relative z-10 inline-block px-4 py-1 rounded-full bg-velvet-800 text-champagne-bright text-xs font-bold uppercase tracking-[0.2em]">
+        Chúc Mừng Giải Mã Thành Công Từ Khóa
+      </span>
+
+      <h2 class="relative z-10 mt-3 font-display font-bold text-4xl sm:text-5xl wine-heading-text tracking-wider">
+        SỢI POLYMER
+      </h2>
+
+      <p id="victoryWinnerLine" class="relative z-10 mt-2 text-base font-bold text-velvet-700">
+        Dẫn đầu bảng điểm: Tổ 1
+      </p>
+
+      <div class="relative z-10 mt-5 p-4 sm:p-5 rounded-2xl bg-champagne-soft/75 border border-champagne-gold/75 text-left space-y-2.5">
+        <div class="text-xs font-extrabold uppercase tracking-wider text-velvet-700">
+          Chốt Kiến Thức Cốt Lõi — Hóa Học 12 (Vật Liệu Polymer: Tơ)
+        </div>
+        <p class="font-letter text-sm sm:text-[15px] text-wineink-deep leading-relaxed">
+          <strong>Định nghĩa:</strong> Tơ là những vật liệu <strong>polymer có dạng sợi dài, mảnh</strong> với độ bền nhất định, gồm 3 nhóm chính:
+        </p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+          <div class="p-3 rounded-xl bg-champagne-pearl border border-champagne-gold/55">
+            <strong class="text-velvet-700 block mb-0.5">1. Tơ tự nhiên</strong>
+            <span class="text-wineink-mid">Bông (Cotton), Len, Tơ tằm — thấm hút tốt, thoáng khí, êm da.</span>
+          </div>
+          <div class="p-3 rounded-xl bg-champagne-pearl border border-champagne-gold/55">
+            <strong class="text-velvet-700 block mb-0.5">2. Tơ bán tổng hợp</strong>
+            <span class="text-wineink-mid">Visco, Cellulose Acetate — chế biến từ cellulose, mềm rũ &amp; kinh tế.</span>
+          </div>
+          <div class="p-3 rounded-xl bg-champagne-pearl border border-champagne-gold/55">
+            <strong class="text-velvet-700 block mb-0.5">3. Tơ tổng hợp</strong>
+            <span class="text-wineink-mid">Capron, Nylon-6,6, Nitron, Polyester — siêu dai bền, chống nhăn.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="relative z-10 mt-6 flex flex-wrap items-center justify-center gap-2.5">
+        <button id="btnVictoryViewBoard" type="button" class="btn-smooth btn-champagne px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm cursor-pointer">
+          Xem Bảng Ô Chữ Đầy Đủ
+        </button>
+        <button id="btnVictoryFireworks" type="button" class="btn-smooth btn-burgundy px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm cursor-pointer">
+          🎆 Bắn Thêm Pháo Hoa
+        </button>
+        <button id="btnVictoryReplay" type="button" class="btn-smooth px-5 py-2.5 rounded-full bg-champagne-soft border border-champagne-bronze/55 text-velvet-800 font-bold text-xs sm:text-sm cursor-pointer">
+          ↺ Chơi Lại
+        </button>
+      </div>
+
+      <p class="relative z-10 mt-5 text-xs text-wineink-soft font-medium">
+        Thiết kế &amp; Lập trình: <strong class="text-velvet-800">Lê Hữu Nam</strong>
+      </p>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL XÁC NHẬN CHƠI LẠI (THAY THẾ HOÀN TOÀN CONFIRM())
+  ========================================================================= -->
+  <div id="resetModal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+    <div class="modal-pop cream-card rounded-3xl max-w-sm w-full p-6 text-center relative">
+      <div class="cream-double-rim" aria-hidden="true"></div>
+      <h3 class="relative z-10 font-display font-bold text-xl text-velvet-800">Bắt đầu lại ván chơi mới?</h3>
+      <p class="relative z-10 text-xs sm:text-sm text-wineink-mid mt-2">
+        Toàn bộ 10 hàng ngang, danh sách đáp án đã thử và điểm của 4 tổ sẽ được đặt lại về ban đầu.
+      </p>
+      <div class="relative z-10 mt-5 flex justify-center gap-2.5">
+        <button id="btnConfirmReset" type="button" class="btn-smooth px-5 py-2.5 rounded-full bg-velvet-750 hover:bg-velvet-700 text-champagne-pearl font-bold text-xs cursor-pointer">
+          Đồng Ý Chơi Lại
+        </button>
+        <button id="btnCancelReset" type="button" class="btn-smooth px-5 py-2.5 rounded-full bg-champagne-soft border border-champagne-bronze/55 text-wineink-deep font-bold text-xs cursor-pointer">
+          Hủy
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       JAVASCRIPT ENGINE 60–120 FPS:
+       1. Dữ liệu chuẩn 10 hàng ngang x 14 cột (cột index 5 = SỢI POLYMER)
+       2. AI so khớp ngữ âm tiếng Việt/Anh Hóa 12 + khoảng cách Levenshtein
+       3. Web Audio API trầm ấm, sang trọng (nhạc hồi hộp nhẹ, ducking khi bật Mic, SFX gọn)
+       4. Single Canvas khóa dpr = 1, 4 Offscreen Sprites 32x32px, Object Pooling (24 + 64)
+       5. Delta-time loop, đo FPS thực, chế độ Siêu Nhẹ & quản lý Fullscreen an toàn
+  ========================================================================= -->
+  <script>
+    (() => {
+      'use strict';
+
+      /* =====================================================================
+         1. DỮ LIỆU 10 HÀNG NGANG CHÍNH XÁC HÓA 12 (14 CỘT 0..13, CỘT KHÓA = 5)
+      ===================================================================== */
+      const TOTAL_COLS = 14;
+      const KEY_COL = 5;
+      const TIMER_CIRCUMFERENCE = 2 * Math.PI * 24;
+      const KEYWORD_LETTERS = ['S', 'Ợ', 'I', 'P', 'O', 'L', 'Y', 'M', 'E', 'R'];
+
+      const CROSSWORD_DATA = [
+        {
+          id: 1,
+          answer: 'VISCO',
+          displayWord: 'VISCO',
+          keyIndex: 2, // bắt đầu cột 3 -> cột 5 = S
+          category: 'Tơ bán tổng hợp',
+          question: 'Loại tơ bán tổng hợp nổi tiếng làm từ bột gỗ, vải mềm mịn, thoáng mát, có độ rũ đẹp giống lụa nhưng giá kinh tế hơn nhiều?',
+          funFact: 'Tơ visco chế biến hóa học từ cellulose bột gỗ, thấm hút tốt, rũ mát giống lụa nhưng hơi yếu sợi khi ướt.',
+          aliases: ['visco', 'to visco', 'vit co', 'viet co', 'vico', 'vis co', 'bi co', 'vixco', 'vizco', 'to vit co', 'to viet co', 'vit co', 'rayon']
+        },
+        {
+          id: 2,
+          answer: 'TƠTẰM',
+          displayWord: 'TƠ TẰM',
+          keyIndex: 1, // bắt đầu cột 4 -> cột 5 = Ơ (huy hiệu Ợ khi mở từ khóa)
+          category: 'Tơ tự nhiên',
+          question: 'Loại tơ tự nhiên nguồn gốc động vật, thành phần chính là protein, bóng mượt nhưng rất kỵ nước nóng và xà phòng có tính kiềm mạnh?',
+          funFact: 'Tơ tằm có bản chất protein (chứa liên kết –CO–NH–), rất dễ bị biến tính, hư sợi trong nước nóng hoặc kiềm mạnh.',
+          aliases: ['to tam', 'totam', 'tơ tằm', 'tơ tầm', 'lua to tam', 'to tam tu nhien', 'ken tam', 'to con tam']
+        },
+        {
+          id: 3,
+          answer: 'NITRON',
+          displayWord: 'NITRON',
+          keyIndex: 1, // bắt đầu cột 4 -> cột 5 = I
+          category: 'Tơ tổng hợp',
+          question: 'Loại tơ tổng hợp (còn gọi là tơ olon) sợi mềm xốp, giữ nhiệt cực tốt, thường dùng bện thành sợi len đan áo rét mùa đông?',
+          funFact: 'Tơ nitron (còn gọi là tơ olon) trùng hợp từ acrylonitrile, trên tem mác áo len nhân tạo thường ghi là Acrylic.',
+          aliases: ['nitron', 'to nitron', 'ni tron', 'ni trong', 'nit rong', 'olon', 'to olon', 'o lon', 'to o lon', 'ni ton', 'acrylic']
+        },
+        {
+          id: 4,
+          answer: 'CAPRON',
+          displayWord: 'CAPRON',
+          keyIndex: 2, // bắt đầu cột 3 -> cột 5 = P
+          category: 'Tơ tổng hợp',
+          question: 'Loại tơ tổng hợp siêu dai bền, điều chế bằng phản ứng trùng hợp caprolactam, thường dùng làm lưới đánh cá, dây cáp, tất chân?',
+          funFact: 'Tơ capron (nylon-6) thuộc nhóm polyamide, có mạch [—NH—(CH₂)₅—CO—]ₙ cực dai bền và đàn hồi tốt.',
+          aliases: ['capron', 'to capron', 'cap ron', 'cac ron', 'cap rong', 'cac rong', 'ca pron', 'ca po ron', 'to cap ron', 'to cap rong', 'nylon 6', 'nilon 6']
+        },
+        {
+          id: 5,
+          answer: 'COTTON',
+          displayWord: 'COTTON',
+          keyIndex: 1, // bắt đầu cột 4 -> cột 5 = O
+          category: 'Tơ tự nhiên',
+          question: 'Tên tiếng Anh quen thuộc trên tem mác quần áo của loại vải dệt từ sợi bông tự nhiên, nổi tiếng thấm hút mồ hôi và mát mẻ mùa hè?',
+          funFact: 'Cotton (sợi bông) giàu cellulose tự nhiên, mặc mát và thấm hút mồ hôi cực tốt nhưng dễ nhăn khi giặt.',
+          aliases: ['cotton', 'cot tong', 'co tong', 'coton', 'vai cotton', 'vai cot tong', 'vai co tong', 'soi cotton', 'cot ton', 'co ton', 'bong', 'soi bong', 'vai bong']
+        },
+        {
+          id: 6,
+          answer: 'CELLULOSE',
+          displayWord: 'CELLULOSE',
+          keyIndex: 2, // bắt đầu cột 3 -> cột 5 = L
+          category: 'Polymer thiên nhiên',
+          question: 'Polymer thiên nhiên là thành phần chính của sợi bông, đồng thời là nguyên liệu gốc để chế tạo các loại tơ bán tổng hợp?',
+          funFact: 'Cellulose (C₆H₁₀O₅)ₙ là polysaccharide thiên nhiên trong bông và bột gỗ, là gốc chế biến tơ visco & cellulose acetate.',
+          aliases: ['cellulose', 'xenlulozo', 'xen lu lo zo', 'sen lu lo', 'sen lu lo zo', 'xen lu lo', 'xenlulo', 'cenlulo', 'selulo', 'cellulo', 'cellulozo', 'senlulo']
+        },
+        {
+          id: 7,
+          answer: 'POLYESTER',
+          displayWord: 'POLYESTER',
+          keyIndex: 3, // bắt đầu cột 2 -> cột 5 = Y
+          category: 'Tơ tổng hợp',
+          question: 'Nhóm tơ tổng hợp (tiêu biểu là tơ lapsan) nổi tiếng chống nhăn, nhanh khô, dùng nhiều trong đồ thể thao và áo khoác gió?',
+          funFact: 'Polyester (như tơ lapsan) nổi tiếng chống nhăn, nhanh khô, thường được pha 40% với 60% Cotton cho áo mặc hằng ngày.',
+          aliases: ['polyester', 'polieste', 'po li et te', 'po li e xte', 'po li es te', 'po li e te', 'poliester', 'polyeste', 'to polieste', 'to polyester', 'lapsan', 'to lapsan']
+        },
+        {
+          id: 8,
+          answer: 'POLYAMIDE',
+          displayWord: 'POLYAMIDE',
+          keyIndex: 5, // bắt đầu cột 0 -> cột 5 = M
+          category: 'Tơ tổng hợp',
+          question: 'Nhóm tơ tổng hợp chứa nhiều nhóm chức –CO–NH– trong mạch (gồm hai đại diện kinh điển là tơ capron và nylon-6,6)?',
+          funFact: 'Tơ polyamide có nhiều nhóm amide –CO–NH– trong mạch nên dai bền, nhưng kém bền với acid mạnh và kiềm mạnh.',
+          aliases: ['polyamide', 'poliamit', 'po li a mit', 'po li a mi', 'polyamit', 'poliamid', 'to poliamit', 'to polyamide', 'po li a mic', 'nhom poliamit']
+        },
+        {
+          id: 9,
+          answer: 'ACETATE',
+          displayWord: 'ACETATE',
+          keyIndex: 2, // bắt đầu cột 3 -> cột 5 = E
+          category: 'Tơ bán tổng hợp',
+          question: 'Tên gọn của loại tơ bán tổng hợp (tơ cellulose ...) có bề mặt bóng đẹp, ít nhăn hơn visco, còn dùng làm gọng kính thời trang và phim ảnh?',
+          funFact: 'Tơ cellulose acetate bóng mịn, ít nhăn hơn visco, ứng dụng dệt vải lụa, đúc gọng kính thời trang và làm phim ảnh.',
+          aliases: ['acetate', 'axetat', 'a xe tat', 'a se tat', 'axetate', 'to axetat', 'to acetate', 'xenlulozo axetat', 'cellulose acetate', 'a xe tac']
+        },
+        {
+          id: 10,
+          answer: 'TRÙNGNGƯNG',
+          displayWord: 'TRÙNG NGƯNG',
+          keyIndex: 1, // bắt đầu cột 4 -> cột 5 = R (10 ô: cột 4..13)
+          category: 'Phản ứng hóa học',
+          question: 'Tên loại phản ứng hóa học dùng để tổng hợp nên tơ nylon-6,6 và tơ lapsan (kèm giải phóng phân tử nhỏ như H₂O)?',
+          funFact: 'Phản ứng trùng ngưng kết hợp nhiều phân tử monomer có ít nhất 2 nhóm chức phản ứng được với nhau, đồng thời giải phóng phân tử nhỏ như H₂O.',
+          aliases: ['trung ngung', 'phan ung trung ngung', 'trung nguong', 'chung ngung', 'trung ngun', 'trùng ngưng']
+        }
+      ];
+
+      const KEYWORD_ALIASES = [
+        'soi polymer', 'soi polime', 'soi po li me', 'soi po ly me',
+        'soi pollyme', 'soi polyme', 'soi bo li me', 'sợi polymer',
+        'sợi polime', 'polymer', 'polime'
+      ];
+
+      /* =====================================================================
+         2. BỘ MÁY AI SO KHỚP NGỮ ÂM TIẾNG VIỆT / ANH HÓA 12 + LEVENSHTEIN
+      ===================================================================== */
+      function normalizePhonetic(str) {
+        if (!str) return '';
+        return str
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/đ/g, 'd')
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+
+      function compactAlpha(str) {
+        return normalizePhonetic(str).replace(/\s+/g, '');
+      }
+
+      function stripFillers(normStr) {
+        return normStr
+          .replace(/^(dap an la|cau tra loi la|em chon|em doan|tu khoa la|do la|la|to|vai|nhom|phan ung)\s+/g, '')
+          .trim();
+      }
+
+      function levenshtein(a, b) {
+        const m = a.length;
+        const n = b.length;
+        if (m === 0) return n;
+        if (n === 0) return m;
+        const dp = new Array(n + 1);
+        for (let j = 0; j <= n; j++) dp[j] = j;
+        for (let i = 1; i <= m; i++) {
+          let prev = dp[0];
+          dp[0] = i;
+          for (let j = 1; j <= n; j++) {
+            const temp = dp[j];
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost);
+            prev = temp;
+          }
+        }
+        return dp[n];
+      }
+
+      function isPhoneticMatch(transcripts, targetAnswer, aliases) {
+        const targets = [targetAnswer, ...aliases].map((s) => compactAlpha(s)).filter(Boolean);
+
+        for (let i = 0; i < transcripts.length; i++) {
+          const rawNorm = normalizePhonetic(transcripts[i]);
+          if (!rawNorm) continue;
+
+          const variants = [
+            compactAlpha(rawNorm),
+            compactAlpha(stripFillers(rawNorm))
+          ].filter(Boolean);
+
+          for (const spoken of variants) {
+            for (const target of targets) {
+              if (spoken === target) return true;
+              if (target.length >= 5 && spoken.includes(target)) return true;
+
+              const maxLen = Math.max(spoken.length, target.length);
+              const dist = levenshtein(spoken, target);
+              const allowed = target.length <= 5 ? 1 : (target.length <= 8 ? 2 : 3);
+              if (dist <= allowed && (1 - dist / maxLen) >= 0.72) return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      /* =====================================================================
+         3. HỆ THỐNG ÂM THANH WEB AUDIO API TRẦM ẤM, HỒI HỘP LÔI CUỐN (KHÔNG CHÓI TAI)
+            - Nhạc nền hồi hộp nhịp trầm ấm sang trọng (Dm - Bb - Gm - A7)
+            - Audio Ducking tự động giảm nhạc xuống 16% khi bật Mic AI
+            - SFX gọn gàng: chọn hàng, tích tắc đồng hồ, 5 giây cuối gọn, lật ô, đúng/sai, chiến thắng
+      ===================================================================== */
+      const SoundEngine = (() => {
+        let ctx = null;
+        let masterGain = null;
+        let bgmGain = null;
+        let sfxGain = null;
+        let bgmEnabled = true;
+        let sfxEnabled = true;
+        let micDucked = false;
+        let seqTimer = null;
+        let step = 0;
+
+        // Hợp âm nền trầm ấm, tinh tế & lôi cuốn (không gây chói tai)
+        const PROGRESSION = [
+          { bass: 73.42, chord: [293.66, 349.23, 440.00], arp: [293.66, 440.00, 349.23, 523.25] }, // Dm7
+          { bass: 58.27, chord: [233.08, 293.66, 349.23], arp: [233.08, 349.23, 293.66, 440.00] }, // Bbmaj7
+          { bass: 98.00, chord: [196.00, 293.66, 349.23], arp: [196.00, 293.66, 349.23, 466.16] }, // Gm7
+          { bass: 55.00, chord: [220.00, 277.18, 329.63], arp: [220.00, 329.63, 277.18, 440.00] }  // A7
+        ];
+
+        function ensureCtx() {
+          try {
+            if (!ctx) {
+              const AudioCtx = window.AudioContext || window.webkitAudioContext;
+              if (!AudioCtx) return false;
+              ctx = new AudioCtx();
+
+              masterGain = ctx.createGain();
+              masterGain.gain.value = 0.72;
+              masterGain.connect(ctx.destination);
+
+              bgmGain = ctx.createGain();
+              bgmGain.gain.value = bgmEnabled ? 0.24 : 0.0001;
+              bgmGain.connect(masterGain);
+
+              sfxGain = ctx.createGain();
+              sfxGain.gain.value = sfxEnabled ? 0.78 : 0.0001;
+              sfxGain.connect(masterGain);
+            }
+            if (ctx.state === 'suspended') {
+              ctx.resume().catch(() => {});
+            }
+            return true;
+          } catch (_) {
+            return false;
+          }
+        }
+
+        function refreshBgmVolume() {
+          if (!ctx || !bgmGain) return;
+          const base = bgmEnabled ? 0.24 : 0.0001;
+          const target = micDucked ? base * 0.16 : base;
+          bgmGain.gain.setTargetAtTime(target, ctx.currentTime, 0.12);
+        }
+
+        function setMicDucking(active) {
+          micDucked = Boolean(active);
+          refreshBgmVolume();
+        }
+
+        function playTone(freq, type, peak, dur, dest, offset = 0, endFreq = null, lpFreq = 0) {
+          if (!ctx || !dest || ctx.state !== 'running') return;
+          const t0 = ctx.currentTime + offset;
+          const osc = ctx.createOscillator();
+          const env = ctx.createGain();
+
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, t0);
+          if (endFreq !== null) {
+            osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), t0 + dur);
+          }
+
+          env.gain.setValueAtTime(0.0001, t0);
+          env.gain.linearRampToValueAtTime(peak, t0 + Math.min(0.025, dur * 0.25));
+          env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+          if (lpFreq > 0) {
+            const lp = ctx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.setValueAtTime(lpFreq, t0);
+            osc.connect(lp);
+            lp.connect(env);
+          } else {
+            osc.connect(env);
+          }
+
+          env.connect(dest);
+          osc.start(t0);
+          osc.stop(t0 + dur + 0.04);
+        }
+
+        function startBgm() {
+          if (!ensureCtx() || !bgmEnabled) return;
+          refreshBgmVolume();
+          if (seqTimer) return;
+
+          const tickBgm = () => {
+            if (!bgmEnabled || !ctx || document.hidden || ctx.state !== 'running') return;
+            const barIdx = Math.floor(step / 8) % PROGRESSION.length;
+            const beatInBar = step % 8;
+            const bar = PROGRESSION[barIdx];
+
+            // Nhịp bass trầm êm giữ cảm giác hồi hộp nhẹ nhàng
+            if (beatInBar === 0 || beatInBar === 4) {
+              playTone(bar.bass, 'sine', 0.26, 0.95, bgmGain, 0);
+              playTone(bar.bass * 2, 'triangle', 0.09, 0.42, bgmGain, 0, null, 380);
+            }
+
+            // Lớp pad ấm áp đầu mỗi ô nhịp
+            if (beatInBar === 0) {
+              bar.chord.forEach((f) => {
+                playTone(f, 'sine', 0.055, 2.5, bgmGain, 0);
+              });
+            }
+
+            // Nốt pluck nhẹ nhàng dẫn nhịp
+            if (beatInBar % 2 === 0) {
+              const arpNote = bar.arp[(beatInBar / 2) % bar.arp.length];
+              playTone(arpNote, 'triangle', 0.068, 0.34, bgmGain, 0, null, 1200);
+            }
+
+            step++;
+          };
+
+          tickBgm();
+          seqTimer = setInterval(tickBgm, 360);
+        }
+
+        function stopBgm() {
+          if (seqTimer) {
+            clearInterval(seqTimer);
+            seqTimer = null;
+          }
+          refreshBgmVolume();
+        }
+
+        function toggleBgm() {
+          bgmEnabled = !bgmEnabled;
+          if (bgmEnabled) startBgm();
+          else stopBgm();
+          return bgmEnabled;
+        }
+
+        function toggleSfx() {
+          sfxEnabled = !sfxEnabled;
+          if (sfxGain && ctx) {
+            sfxGain.gain.setTargetAtTime(sfxEnabled ? 0.78 : 0.0001, ctx.currentTime, 0.05);
+          }
+          return sfxEnabled;
+        }
+
+        function playReadyChime() {
+          if (!sfxEnabled || !ensureCtx()) return;
+          [440, 554.37, 659.25, 880].forEach((f, i) => {
+            playTone(f, 'triangle', 0.16, 0.36, sfxGain, i * 0.065, null, 2000);
+          });
+        }
+
+        function playSelectRow() {
+          if (!sfxEnabled || !ensureCtx()) return;
+          playTone(523.25, 'sine', 0.16, 0.09, sfxGain, 0, 659.25);
+          playTone(783.99, 'sine', 0.10, 0.12, sfxGain, 0.05);
+        }
+
+        function playMicStart() {
+          if (!sfxEnabled || !ensureCtx()) return;
+          playTone(587.33, 'sine', 0.18, 0.08, sfxGain, 0, 880);
+        }
+
+        function playMicStop() {
+          if (!sfxEnabled || !ensureCtx()) return;
+          playTone(659.25, 'sine', 0.12, 0.09, sfxGain, 0, 440);
+        }
+
+        // Tích tắc đồng hồ gọn gàng (5 giây cuối ấm áp rõ nhịp, không chói tai)
+        function playTick(isLastFive) {
+          if (!sfxEnabled || !ensureCtx()) return;
+          if (isLastFive) {
+            playTone(880, 'triangle', 0.16, 0.075, sfxGain, 0, 660, 1800);
+            playTone(110, 'sine', 0.20, 0.09, sfxGain, 0, 75);
+          } else {
+            playTone(740, 'sine', 0.085, 0.045, sfxGain, 0);
+          }
+        }
+
+        function playTimeUp() {
+          if (!sfxEnabled || !ensureCtx()) return;
+          playTone(329.63, 'triangle', 0.22, 0.32, sfxGain, 0, 261.63, 1200);
+          playTone(220.00, 'sine', 0.24, 0.45, sfxGain, 0.14, 174.61);
+        }
+
+        function playTileFlip(index) {
+          if (!sfxEnabled || !ensureCtx()) return;
+          const f = 523.25 + index * 46;
+          playTone(f, 'sine', 0.13, 0.17, sfxGain, 0);
+        }
+
+        function playCorrect() {
+          if (!sfxEnabled || !ensureCtx()) return;
+          [523.25, 659.25, 783.99, 1046.50].forEach((f, idx) => {
+            playTone(f, 'triangle', 0.18, 0.34, sfxGain, idx * 0.075, null, 2200);
+          });
+        }
+
+        function playWrong() {
+          if (!sfxEnabled || !ensureCtx()) return;
+          playTone(246.94, 'triangle', 0.20, 0.18, sfxGain, 0, 207.65, 900);
+          playTone(196.00, 'triangle', 0.22, 0.28, sfxGain, 0.16, 164.81, 800);
+        }
+
+        function playVictoryChord() {
+          if (!sfxEnabled || !ensureCtx()) return;
+          const seq = [
+            { notes: [261.63, 329.63, 523.25], t: 0.00, d: 0.26 },
+            { notes: [329.63, 392.00, 659.25], t: 0.20, d: 0.26 },
+            { notes: [392.00, 493.88, 783.99], t: 0.40, d: 0.30 },
+            { notes: [261.63, 392.00, 523.25, 659.25, 1046.50], t: 0.65, d: 1.05 }
+          ];
+          seq.forEach((stepItem) => {
+            stepItem.notes.forEach((f) => {
+              playTone(f, 'triangle', 0.12, stepItem.d, sfxGain, stepItem.t, null, 2400);
+              playTone(f, 'sine', 0.10, stepItem.d, sfxGain, stepItem.t);
+            });
+          });
+        }
+
+        return {
+          ensureCtx,
+          startBgm,
+          stopBgm,
+          toggleBgm,
+          toggleSfx,
+          setMicDucking,
+          playReadyChime,
+          playSelectRow,
+          playMicStart,
+          playMicStop,
+          playTick,
+          playTimeUp,
+          playTileFlip,
+          playCorrect,
+          playWrong,
+          playVictoryChord
+        };
+      })();
+
+      /* =====================================================================
+         4. CANVAS 60–120 FPS (DPR = 1, 4 OFFSCREEN SPRITES 32x32, OBJECT POOL 24 + 64)
+            - 0% shadowBlur, 0% cấp phát rác trong vòng lặp animation
+      ===================================================================== */
+      const fxCanvas = document.getElementById('fxCanvas');
+      const ctx = fxCanvas.getContext('2d', { alpha: true, desynchronized: true }) || fxCanvas.getContext('2d', { alpha: true });
+
+      let canvasW = window.innerWidth;
+      let canvasH = window.innerHeight;
+      let isLiteMode = false;
+
+      function makeSprite32() {
+        const c = document.createElement('canvas');
+        c.width = 32;
+        c.height = 32;
+        return c;
+      }
+
+      // Tiền kết xuất 4 sprite 32x32px: tia sáng vàng, hạt ánh kim, lục giác benzen, pháo sáng
+      const SPRITES = (() => {
+        // 0: Tia sáng vàng 4 cánh
+        const s0 = makeSprite32();
+        const g0 = s0.getContext('2d');
+        const r0 = g0.createRadialGradient(16, 16, 1, 16, 16, 15);
+        r0.addColorStop(0, 'rgba(255, 253, 248, 0.80)');
+        r0.addColorStop(1, 'rgba(197, 155, 73, 0)');
+        g0.fillStyle = r0;
+        g0.fillRect(0, 0, 32, 32);
+        g0.save();
+        g0.translate(16, 16);
+        g0.fillStyle = '#fffdf8';
+        g0.beginPath();
+        for (let i = 0; i < 4; i++) {
+          const a = (i * Math.PI) / 2;
+          g0.lineTo(Math.cos(a) * 11.4, Math.sin(a) * 11.4);
+          g0.lineTo(Math.cos(a + Math.PI / 4) * 2.5, Math.sin(a + Math.PI / 4) * 2.5);
+        }
+        g0.closePath();
+        g0.fill();
+        g0.restore();
+
+        // 1: Hạt ánh kim champagne
+        const s1 = makeSprite32();
+        const g1 = s1.getContext('2d');
+        const r1 = g1.createRadialGradient(16, 16, 1.5, 16, 16, 15);
+        r1.addColorStop(0, 'rgba(255, 253, 248, 0.96)');
+        r1.addColorStop(0.45, 'rgba(227, 193, 120, 0.72)');
+        r1.addColorStop(1, 'rgba(197, 155, 73, 0)');
+        g1.fillStyle = r1;
+        g1.fillRect(0, 0, 32, 32);
+
+        // 2: Lục giác Benzen vàng champagne
+        const s2 = makeSprite32();
+        const g2 = s2.getContext('2d');
+        g2.save();
+        g2.translate(16, 16);
+        g2.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (Math.PI / 3) * i - Math.PI / 2;
+          const x = Math.cos(a) * 10.4;
+          const y = Math.sin(a) * 10.4;
+          if (i === 0) g2.moveTo(x, y);
+          else g2.lineTo(x, y);
+        }
+        g2.closePath();
+        g2.strokeStyle = '#f7e1a8';
+        g2.lineWidth = 1.6;
+        g2.stroke();
+        g2.beginPath();
+        g2.arc(0, 0, 5.1, 0, Math.PI * 2);
+        g2.strokeStyle = 'rgba(239, 208, 216, 0.82)';
+        g2.lineWidth = 1.05;
+        g2.stroke();
+        g2.restore();
+
+        // 3: Mảnh pháo sáng vàng kim – hồng rượu
+        const s3 = makeSprite32();
+        const g3 = s3.getContext('2d');
+        g3.save();
+        g3.translate(16, 16);
+        g3.rotate(0.42);
+        const cg = g3.createLinearGradient(-8.5, -4.5, 8.5, 4.5);
+        cg.addColorStop(0, '#f7e1a8');
+        cg.addColorStop(0.55, '#e3c178');
+        cg.addColorStop(1, '#fb7185');
+        g3.fillStyle = cg;
+        g3.fillRect(-8.5, -4.5, 17, 9);
+        g3.strokeStyle = '#fffdf8';
+        g3.lineWidth = 0.9;
+        g3.strokeRect(-8.5, -4.5, 17, 9);
+        g3.restore();
+
+        return [s0, s1, s2, s3];
+      })();
+
+      const AMBIENT_POOL_SIZE = 24;
+      const FIREWORK_POOL_SIZE = 64;
+
+      const ambientPool = Array.from({ length: AMBIENT_POOL_SIZE }, () => ({
+        sprite: 0, x: 0, y: 0, vx: 0, vy: 0, size: 14, phase: 0, freq: 1, amp: 12, alpha: 0.36
+      }));
+
+      const fireworkPool = Array.from({ length: FIREWORK_POOL_SIZE }, () => ({
+        active: false, sprite: 0, x: 0, y: 0, vx: 0, vy: 0, gravity: 210, drag: 0.96, size: 16, life: 0, decay: 0.72
+      }));
+      let fwCursor = 0;
+
+      function resetAmbient(p, randY) {
+        const r = Math.random();
+        p.sprite = r < 0.34 ? 0 : (r < 0.68 ? 1 : 2);
+        p.x = Math.random() * canvasW;
+        p.y = randY ? Math.random() * canvasH : canvasH + 24;
+        p.vx = (Math.random() - 0.5) * 10;
+        p.vy = -(11 + Math.random() * 17);
+        p.size = p.sprite === 2 ? (16 + Math.random() * 8) : (10 + Math.random() * 10);
+        p.phase = Math.random() * 6.283;
+        p.freq = 0.7 + Math.random() * 0.9;
+        p.amp = 9 + Math.random() * 15;
+        p.alpha = p.sprite === 2 ? (0.22 + Math.random() * 0.22) : (0.28 + Math.random() * 0.32);
+      }
+
+      function initAmbientPool() {
+        for (let i = 0; i < AMBIENT_POOL_SIZE; i++) resetAmbient(ambientPool[i], true);
+      }
+
+      function spawnGoldFirework(cx, cy, count = 22, spread = 230) {
+        const n = isLiteMode ? Math.min(8, count) : count;
+        for (let i = 0; i < n; i++) {
+          const f = fireworkPool[fwCursor];
+          fwCursor = (fwCursor + 1) % FIREWORK_POOL_SIZE;
+          const a = (Math.PI * 2 * i) / n + (Math.random() - 0.5) * 0.25;
+          const spd = 90 + Math.random() * spread;
+          f.active = true;
+          f.sprite = i % 4;
+          f.x = cx;
+          f.y = cy;
+          f.vx = Math.cos(a) * spd;
+          f.vy = Math.sin(a) * spd - 52;
+          f.gravity = 210;
+          f.drag = 0.962;
+          f.size = 12 + Math.random() * 10;
+          f.life = 1;
+          f.decay = 0.70 + Math.random() * 0.30;
+        }
+      }
+
+      function launchVictoryFireworks() {
+        spawnGoldFirework(canvasW * 0.50, canvasH * 0.26, 26, 250);
+        setTimeout(() => spawnGoldFirework(canvasW * 0.24, canvasH * 0.32, 22, 240), 220);
+        setTimeout(() => spawnGoldFirework(canvasW * 0.76, canvasH * 0.32, 22, 240), 440);
+        setTimeout(() => spawnGoldFirework(canvasW * 0.38, canvasH * 0.22, 20, 230), 700);
+        setTimeout(() => spawnGoldFirework(canvasW * 0.62, canvasH * 0.22, 20, 230), 920);
+      }
+
+      function resizeCanvas() {
+        canvasW = window.innerWidth;
+        canvasH = window.innerHeight;
+        // Khóa cứng dpr = 1 đảm bảo hiệu năng 60–120 FPS
+        fxCanvas.width = canvasW;
+        fxCanvas.height = canvasH;
+      }
+
+      const fpsBadgeEl = document.getElementById('fpsBadge');
+      let rafId = null;
+      let lastTs = 0;
+      let fpsFrames = 0;
+      let fpsStamp = 0;
+
+      function renderFrame(ts) {
+        if (document.hidden) {
+          rafId = null;
+          return;
+        }
+        if (!lastTs) {
+          lastTs = ts;
+          fpsStamp = ts;
+        }
+
+        let dt = (ts - lastTs) * 0.001;
+        if (dt > 0.033) dt = 0.033;
+        if (dt < 0) dt = 0.016;
+        lastTs = ts;
+
+        fpsFrames++;
+        const elapsed = ts - fpsStamp;
+        if (elapsed >= 500) {
+          const fps = Math.min(240, Math.round((fpsFrames * 1000) / elapsed));
+          fpsBadgeEl.textContent = `⚡ ${fps} FPS`;
+          fpsFrames = 0;
+          fpsStamp = ts;
+        }
+
+        ctx.clearRect(0, 0, canvasW, canvasH);
+
+        // Vẽ 24 hạt nền (tắt khi bật chế độ Siêu Nhẹ)
+        if (!isLiteMode) {
+          for (let i = 0; i < AMBIENT_POOL_SIZE; i++) {
+            const p = ambientPool[i];
+            p.phase += p.freq * dt;
+            p.x += (p.vx + Math.sin(p.phase) * p.amp) * dt;
+            p.y += p.vy * dt;
+
+            if (p.y < -28) {
+              resetAmbient(p, false);
+              continue;
+            }
+            if (p.x < -28) p.x = canvasW + 20;
+            else if (p.x > canvasW + 28) p.x = -20;
+
+            ctx.globalAlpha = p.sprite === 0
+              ? p.alpha * (0.45 + 0.55 * Math.abs(Math.sin(p.phase * 1.8)))
+              : p.alpha;
+            const s = p.size | 0;
+            ctx.drawImage(SPRITES[p.sprite], (p.x - (s >> 1)) | 0, (p.y - (s >> 1)) | 0, s, s);
+          }
+        }
+
+        // Vẽ 64 hạt pháo hoa từ Pool cố định
+        const dt60 = dt * 60;
+        for (let i = 0; i < FIREWORK_POOL_SIZE; i++) {
+          const f = fireworkPool[i];
+          if (!f.active) continue;
+
+          const drag = Math.pow(f.drag, dt60);
+          f.vx *= drag;
+          f.vy = f.vy * drag + f.gravity * dt;
+          f.x += f.vx * dt;
+          f.y += f.vy * dt;
+          f.life -= f.decay * dt;
+
+          if (f.life <= 0) {
+            f.active = false;
+            continue;
+          }
+
+          ctx.globalAlpha = f.life > 0.8 ? 1 : f.life * 1.25;
+          const sz = (f.size * (0.55 + 0.45 * f.life)) | 0;
+          ctx.drawImage(SPRITES[f.sprite], (f.x - (sz >> 1)) | 0, (f.y - (sz >> 1)) | 0, sz, sz);
+        }
+
+        ctx.globalAlpha = 1;
+        rafId = requestAnimationFrame(renderFrame);
+      }
+
+      function startLoop() {
+        if (rafId !== null || document.hidden) return;
+        lastTs = 0;
+        fpsFrames = 0;
+        fpsStamp = performance.now();
+        rafId = requestAnimationFrame(renderFrame);
+      }
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+          }
+        } else {
+          startLoop();
+        }
+      });
+
+      /* =====================================================================
+         5. TRẠNG THÁI TRÒ CHƠI & THAM CHIẾU DOM
+      ===================================================================== */
+      const state = {
+        gatePassed: false,
+        activeRowId: null,
+        keywordSolved: false,
+        activeTeamIndex: 0,
+        teams: [
+          { name: 'Tổ 1', score: 0 },
+          { name: 'Tổ 2', score: 0 },
+          { name: 'Tổ 3', score: 0 },
+          { name: 'Tổ 4', score: 0 }
+        ],
+        rowStatus: Object.fromEntries(CROSSWORD_DATA.map((r) => [r.id, 'idle'])),
+        rowTriedWrongs: Object.fromEntries(CROSSWORD_DATA.map((r) => [r.id, []])),
+        kwTriedWrongs: [],
+        timeLeft: 15,
+        timerRunning: false,
+        timerInterval: null,
+        autoCloseTimer: null,
+        micMode: null, // 'row' | 'keyword' | null
+        isListening: false
+      };
+
+      const dom = {
+        readyGate: document.getElementById('readyGate'),
+        btnReadyStart: document.getElementById('btnReadyStart'),
+        mainStage: document.getElementById('mainStage'),
+        headerTeamsBar: document.getElementById('headerTeamsBar'),
+        crosswordBoard: document.getElementById('crosswordBoard'),
+        solvedProgressText: document.getElementById('solvedProgressText'),
+        keywordLivePreview: document.getElementById('keywordLivePreview'),
+        btnOpenKeywordTop: document.getElementById('btnOpenKeywordTop'),
+        btnOpenKeywordFooter: document.getElementById('btnOpenKeywordFooter'),
+        btnToggleBgm: document.getElementById('btnToggleBgm'),
+        btnToggleSfx: document.getElementById('btnToggleSfx'),
+        btnPerfMode: document.getElementById('btnPerfMode'),
+        btnOpenReset: document.getElementById('btnOpenReset'),
+        btnFullscreen: document.getElementById('btnFullscreen'),
+        toastBox: document.getElementById('toastBox'),
+
+        // Tầng 3: Question Modal
+        questionModal: document.getElementById('questionModal'),
+        modalRowBadge: document.getElementById('modalRowBadge'),
+        modalCatBadge: document.getElementById('modalCatBadge'),
+        modalTeamSwitcher: document.getElementById('modalTeamSwitcher'),
+        timerRingCircle: document.getElementById('timerRingCircle'),
+        modalTimerNum: document.getElementById('modalTimerNum'),
+        btnModalTimerToggle: document.getElementById('btnModalTimerToggle'),
+        btnModalTimerReset: document.getElementById('btnModalTimerReset'),
+        modalQuestionText: document.getElementById('modalQuestionText'),
+        modalFunFact: document.getElementById('modalFunFact'),
+        modalLetterSlots: document.getElementById('modalLetterSlots'),
+        modalSlotCaption: document.getElementById('modalSlotCaption'),
+        btnVoiceAnswer: document.getElementById('btnVoiceAnswer'),
+        micBtnIcon: document.getElementById('micBtnIcon'),
+        micBtnLabel: document.getElementById('micBtnLabel'),
+        micWaveWrap: document.getElementById('micWaveWrap'),
+        aiStatusBanner: document.getElementById('aiStatusBanner'),
+        triedWrongsWrap: document.getElementById('triedWrongsWrap'),
+        triedWrongsList: document.getElementById('triedWrongsList'),
+        btnMcCorrect: document.getElementById('btnMcCorrect'),
+        btnMcNextStudent: document.getElementById('btnMcNextStudent'),
+        btnMcRevealZero: document.getElementById('btnMcRevealZero'),
+        btnMcCloseModal: document.getElementById('btnMcCloseModal'),
+
+        // Keyword Modal
+        keywordModal: document.getElementById('keywordModal'),
+        kwTeamSwitcher: document.getElementById('kwTeamSwitcher'),
+        kwHintNote: document.getElementById('kwHintNote'),
+        kwLetterSlots: document.getElementById('kwLetterSlots'),
+        btnKwVoice: document.getElementById('btnKwVoice'),
+        kwMicIcon: document.getElementById('kwMicIcon'),
+        kwMicLabel: document.getElementById('kwMicLabel'),
+        kwWaveWrap: document.getElementById('kwWaveWrap'),
+        kwAiStatus: document.getElementById('kwAiStatus'),
+        kwTriedWrap: document.getElementById('kwTriedWrap'),
+        kwTriedList: document.getElementById('kwTriedList'),
+        btnKwMcWin: document.getElementById('btnKwMcWin'),
+        btnKwMcWrong: document.getElementById('btnKwMcWrong'),
+        btnKwClose: document.getElementById('btnKwClose'),
+
+        // Victory & Reset Modals
+        victoryModal: document.getElementById('victoryModal'),
+        victoryWinnerLine: document.getElementById('victoryWinnerLine'),
+        btnVictoryViewBoard: document.getElementById('btnVictoryViewBoard'),
+        btnVictoryFireworks: document.getElementById('btnVictoryFireworks'),
+        btnVictoryReplay: document.getElementById('btnVictoryReplay'),
+        resetModal: document.getElementById('resetModal'),
+        btnConfirmReset: document.getElementById('btnConfirmReset'),
+        btnCancelReset: document.getElementById('btnCancelReset')
+      };
+
+      let toastTimer = null;
+      function showToast(msg, duration = 3200) {
+        dom.toastBox.textContent = msg;
+        dom.toastBox.classList.remove('toast-hide');
+        dom.toastBox.classList.add('toast-show');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          dom.toastBox.classList.remove('toast-show');
+          dom.toastBox.classList.add('toast-hide');
+        }, duration);
+      }
+
+      /* =====================================================================
+         6. BẢNG ĐIỂM 4 TỔ (ĐỒNG BỘ TRÊN THANH HEADER & TRONG CÁC MODAL)
+      ===================================================================== */
+      function renderAllTeamControls() {
+        dom.headerTeamsBar.innerHTML = '';
+
+        state.teams.forEach((team, idx) => {
+          const active = idx === state.activeTeamIndex;
+          const card = document.createElement('div');
+          card.className = active
+            ? 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-velvet-700 border-2 border-champagne-bright cursor-pointer shadow'
+            : 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-velvet-950/90 border border-champagne-gold/35 hover:border-champagne-gold/75 cursor-pointer';
+
+          card.innerHTML = `
+            <span class="text-xs font-bold ${active ? 'text-champagne-bright' : 'text-champagne-rose/85'}">${team.name}</span>
+            <span class="font-display font-bold text-sm ${active ? 'text-white' : 'text-champagne-pearl'} tabular-nums min-w-[22px] text-center">${team.score}</span>
+            <div class="flex items-center gap-0.5 ml-0.5">
+              <button type="button" data-delta="-5" class="t-adj w-5 h-5 rounded bg-velvet-900 hover:bg-rose-800 text-[11px] font-bold text-champagne-pearl leading-none cursor-pointer">−</button>
+              <button type="button" data-delta="5" class="t-adj w-5 h-5 rounded bg-velvet-900 hover:bg-emerald-700 text-[11px] font-bold text-champagne-pearl leading-none cursor-pointer">+</button>
+            </div>
+          `;
+
+          card.addEventListener('click', (e) => {
+            const adj = e.target.closest('.t-adj');
+            if (adj) {
+              e.stopPropagation();
+              team.score = Math.max(0, team.score + Number(adj.dataset.delta));
+              renderAllTeamControls();
+              return;
+            }
+            state.activeTeamIndex = idx;
+            SoundEngine.playSelectRow();
+            renderAllTeamControls();
+          });
+
+          dom.headerTeamsBar.appendChild(card);
+        });
+
+        [dom.modalTeamSwitcher, dom.kwTeamSwitcher].forEach((container) => {
+          container.innerHTML = '';
+          state.teams.forEach((team, idx) => {
+            const active = idx === state.activeTeamIndex;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = active
+              ? 'px-3 py-1 rounded-full bg-velvet-800 text-champagne-bright border-2 border-champagne-gold text-xs font-bold cursor-pointer'
+              : 'px-3 py-1 rounded-full bg-champagne-soft text-wineink-mid border border-champagne-gold/55 hover:border-velvet-700 text-xs font-semibold cursor-pointer';
+            btn.textContent = `${team.name} (${team.score}đ)`;
+            btn.addEventListener('click', () => {
+              state.activeTeamIndex = idx;
+              SoundEngine.playSelectRow();
+              renderAllTeamControls();
+            });
+            container.appendChild(btn);
+          });
+        });
+      }
+
+      /* =====================================================================
+         7. XÂY DỰNG MA TRẬN 10 HÀNG NGANG x 14 CỘT (CỘT INDEX 5 = SỢI POLYMER)
+      ===================================================================== */
+      const rowEls = new Map();
+      const rowTilesMap = new Map();
+
+      function buildCrosswordBoard() {
+        dom.crosswordBoard.innerHTML = '';
+        rowEls.clear();
+        rowTilesMap.clear();
+
+        CROSSWORD_DATA.forEach((row) => {
+          const startCol = KEY_COL - row.keyIndex;
+          const rowEl = document.createElement('div');
+          rowEl.className = 'cw-row';
+          rowEl.dataset.rowId = String(row.id);
+
+          const numBtn = document.createElement('button');
+          numBtn.type = 'button';
+          numBtn.className = 'row-index-btn';
+          numBtn.textContent = String(row.id).padStart(2, '0');
+          numBtn.title = `Mở câu hỏi Hàng ${row.id} (${row.answer.length} chữ cái)`;
+          numBtn.addEventListener('click', () => openQuestionModal(row.id));
+          rowEl.appendChild(numBtn);
+
+          const tiles = [];
+          for (let col = 0; col < TOTAL_COLS; col++) {
+            const charIdx = col - startCol;
+            if (charIdx < 0 || charIdx >= row.answer.length) {
+              const sp = document.createElement('div');
+              sp.className = 'cw-spacer';
+              rowEl.appendChild(sp);
+            } else {
+              const ch = row.answer[charIdx];
+              const isKeyCol = col === KEY_COL;
+
+              const tileScene = document.createElement('div');
+              tileScene.className = 'tile-scene' + (isKeyCol ? ' is-key-col' : '');
+              tileScene.addEventListener('click', () => openQuestionModal(row.id));
+
+              const inner = document.createElement('div');
+              inner.className = 'tile-inner';
+
+              const front = document.createElement('div');
+              front.className = 'tile-face tile-front';
+              front.textContent = isKeyCol ? '★' : '•';
+
+              const back = document.createElement('div');
+              back.className = 'tile-face tile-back';
+              back.textContent = ch;
+
+              // Hàng 2 (TƠ TẰM): hiện huy hiệu nhỏ 'Ợ' khi giải xong Từ Khóa SỢI POLYMER
+              if (row.id === 2 && isKeyCol) {
+                const toneBadge = document.createElement('span');
+                toneBadge.className = 'tone-note-badge';
+                toneBadge.textContent = 'Ợ';
+                back.appendChild(toneBadge);
+              }
+
+              inner.appendChild(front);
+              inner.appendChild(back);
+              tileScene.appendChild(inner);
+              rowEl.appendChild(tileScene);
+
+              tiles.push({ el: tileScene, isKeyCol, char: ch });
+            }
+          }
+
+          rowEls.set(row.id, rowEl);
+          rowTilesMap.set(row.id, tiles);
+          dom.crosswordBoard.appendChild(rowEl);
+        });
+      }
+
+      function countOpenedRows() {
+        let count = 0;
+        for (const k in state.rowStatus) {
+          if (state.rowStatus[k] === 'solved' || state.rowStatus[k] === 'revealed') count++;
+        }
+        return count;
+      }
+
+      function updateProgressUI() {
+        const opened = countOpenedRows();
+        dom.solvedProgressText.textContent = `Đã mở: ${opened}/10 hàng ngang`;
+
+        if (state.keywordSolved) {
+          dom.keywordLivePreview.textContent = 'Từ khóa hàng dọc: S Ợ I • P O L Y M E R';
+          return;
+        }
+        const chars = CROSSWORD_DATA.map((r) => {
+          const st = state.rowStatus[r.id];
+          return (st === 'solved' || st === 'revealed') ? r.answer[r.keyIndex] : '?';
+        });
+        dom.keywordLivePreview.textContent = `Từ khóa hàng dọc: ${chars.slice(0, 3).join(' ')} • ${chars.slice(3).join(' ')}`;
+      }
+
+      function flipMainBoardRow(rowId, withSound = true, victoryKey = false) {
+        const tiles = rowTilesMap.get(rowId);
+        if (!tiles) return;
+        tiles.forEach((tile, idx) => {
+          setTimeout(() => {
+            tile.el.classList.add('is-flipped');
+            if (withSound) SoundEngine.playTileFlip(idx);
+            if (victoryKey && tile.isKeyCol) {
+              tile.el.classList.add('is-victory-key');
+              if (rowId === 2) tile.el.classList.add('show-tone-badge');
+            }
+          }, idx * 65);
+        });
+      }
+
+      /* =====================================================================
+         8. ĐỒNG HỒ VÒNG TRÒN 15 GIÂY (5 GIÂY CUỐI ĐỔI ĐỎ RƯỢU + TÍCH TẮC GỌN)
+      ===================================================================== */
+      function updateTimerUI() {
+        const t = state.timeLeft;
+        dom.modalTimerNum.textContent = String(t).padStart(2, '0');
+
+        const fraction = Math.max(0, Math.min(1, t / 15));
+        const offset = TIMER_CIRCUMFERENCE * (1 - fraction);
+        dom.timerRingCircle.style.strokeDashoffset = String(offset);
+
+        if (t <= 5) {
+          dom.timerRingCircle.setAttribute('stroke', '#9f1239');
+          dom.modalTimerNum.className = 'absolute font-display font-bold text-xl text-rose-800 tabular-nums leading-none';
+        } else if (t <= 9) {
+          dom.timerRingCircle.setAttribute('stroke', '#b45309');
+          dom.modalTimerNum.className = 'absolute font-display font-bold text-xl text-amber-800 tabular-nums leading-none';
+        } else {
+          dom.timerRingCircle.setAttribute('stroke', '#48101f');
+          dom.modalTimerNum.className = 'absolute font-display font-bold text-xl text-velvet-750 tabular-nums leading-none';
+        }
+
+        dom.btnModalTimerToggle.textContent = state.timerRunning ? '⏸ Tạm dừng' : '▶ Bắt đầu';
+      }
+
+      function stopTimer() {
+        state.timerRunning = false;
+        if (state.timerInterval) {
+          clearInterval(state.timerInterval);
+          state.timerInterval = null;
+        }
+        updateTimerUI();
+      }
+
+      function resetTimer(autoStart = false) {
+        stopTimer();
+        state.timeLeft = 15;
+        updateTimerUI();
+        if (autoStart) startTimer();
+      }
+
+      function startTimer() {
+        if (state.timerRunning) return;
+        if (state.timeLeft <= 0) state.timeLeft = 15;
+
+        SoundEngine.ensureCtx();
+        state.timerRunning = true;
+        updateTimerUI();
+
+        state.timerInterval = setInterval(() => {
+          state.timeLeft--;
+          if (state.timeLeft <= 0) {
+            state.timeLeft = 0;
+            stopTimer();
+            SoundEngine.playTimeUp();
+            showToast('⏰ Hết 15 giây! Mời bạn khác trả lời hoặc bấm lật đáp án.');
+            return;
+          }
+          updateTimerUI();
+          SoundEngine.playTick(state.timeLeft <= 5);
+        }, 1000);
+      }
+
+      /* =====================================================================
+         9. TẦNG 3 — SPOTLIGHT MODAL CÂU HỎI & LIVE LETTER SLOTS
+      ===================================================================== */
+      function getRow(id) {
+        return CROSSWORD_DATA.find((r) => r.id === id) || null;
+      }
+
+      function renderLiveRowSlots(row, mode = 'empty', previewText = '') {
+        dom.modalLetterSlots.innerHTML = '';
+        const cleanedChars = previewText
+          .toUpperCase()
+          .replace(/[^A-ZÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴĐ]/g, '')
+          .split('');
+
+        for (let i = 0; i < row.answer.length; i++) {
+          const slot = document.createElement('div');
+          const isKey = i === row.keyIndex;
+          let cls = 'live-slot' + (isKey ? ' is-key' : '');
+          let letter = '';
+
+          if (mode === 'solved') {
+            cls += ' is-correct';
+            letter = row.answer[i];
+          } else if (mode === 'hearing') {
+            cls += ' is-hearing';
+            letter = cleanedChars[i] || '';
+          } else if (mode === 'wrong') {
+            cls += ' is-wrong';
+            letter = cleanedChars[i] || '';
+          }
+
+          slot.className = cls;
+          slot.textContent = letter;
+
+          if (isKey) {
+            const star = document.createElement('span');
+            star.className = 'live-slot-star';
+            star.textContent = '★';
+            slot.appendChild(star);
+          }
+
+          dom.modalLetterSlots.appendChild(slot);
+        }
+      }
+
+      function renderTriedWrongsForRow(rowId) {
+        const list = state.rowTriedWrongs[rowId] || [];
+        if (list.length === 0) {
+          dom.triedWrongsWrap.classList.add('hidden');
+          dom.triedWrongsList.innerHTML = '';
+          return;
+        }
+        dom.triedWrongsWrap.classList.remove('hidden');
+        dom.triedWrongsList.innerHTML = list
+          .map((txt) => `<span class="px-2.5 py-0.5 rounded-full bg-rose-100 border border-rose-300 text-rose-900 text-xs font-semibold line-through">${txt}</span>`)
+          .join('');
+      }
+
+      function openQuestionModal(rowId) {
+        const row = getRow(rowId);
+        if (!row) return;
+
+        if (state.autoCloseTimer) {
+          clearTimeout(state.autoCloseTimer);
+          state.autoCloseTimer = null;
+        }
+        stopListening();
+        SoundEngine.playSelectRow();
+        state.activeRowId = rowId;
+
+        const isOpened = state.rowStatus[rowId] === 'solved' || state.rowStatus[rowId] === 'revealed';
+
+        dom.modalRowBadge.textContent = `HÀNG NGANG SỐ ${String(row.id).padStart(2, '0')} • ${row.answer.length} CHỮ CÁI`;
+        dom.modalCatBadge.textContent = row.category;
+        dom.modalQuestionText.textContent = row.question;
+        dom.modalSlotCaption.textContent = `Ô thứ ${row.keyIndex + 1} có biểu tượng ★ thuộc Từ khóa hàng dọc`;
+
+        if (isOpened) {
+          renderLiveRowSlots(row, 'solved');
+          dom.modalFunFact.innerHTML = `<strong>Đáp án chuẩn: ${row.displayWord}</strong> — ${row.funFact}`;
+          dom.modalFunFact.classList.remove('hidden');
+          dom.aiStatusBanner.className = 'w-full text-center text-sm sm:text-base font-bold text-emerald-800 min-h-[26px]';
+          dom.aiStatusBanner.textContent = `✅ Hàng ngang số ${String(row.id).padStart(2, '0')} đã mở khóa: ${row.displayWord}`;
+          resetTimer(false);
+        } else {
+          renderLiveRowSlots(row, 'empty');
+          dom.modalFunFact.classList.add('hidden');
+          dom.aiStatusBanner.className = 'w-full text-center text-sm sm:text-base font-semibold text-wineink-mid min-h-[26px]';
+          dom.aiStatusBanner.textContent = 'Bấm nút Mic (hoặc phím Space) để học sinh đọc to đáp án — AI sẽ tự điền ô và kiểm tra ngay!';
+          resetTimer(true);
+        }
+
+        renderTriedWrongsForRow(rowId);
+        renderAllTeamControls();
+        dom.questionModal.classList.remove('hidden');
+      }
+
+      function closeQuestionModal() {
+        if (state.autoCloseTimer) {
+          clearTimeout(state.autoCloseTimer);
+          state.autoCloseTimer = null;
+        }
+        stopListening();
+        stopTimer();
+        dom.questionModal.classList.add('hidden');
+      }
+
+      function completeRowSuccess(rowId, awardPoints = true, byAI = false) {
+        const row = getRow(rowId);
+        if (!row) return;
+
+        stopListening();
+        stopTimer();
+
+        const prevStatus = state.rowStatus[rowId];
+        const rowEl = rowEls.get(rowId);
+        rowEl.classList.remove('is-revealed-only');
+
+        if (awardPoints) {
+          state.rowStatus[rowId] = 'solved';
+          rowEl.classList.add('is-solved');
+          if (prevStatus !== 'solved' && prevStatus !== 'revealed') {
+            state.teams[state.activeTeamIndex].score += 10;
+            renderAllTeamControls();
+          }
+          SoundEngine.playCorrect();
+          spawnGoldFirework(canvasW * 0.50, canvasH * 0.34, 24, 240);
+
+          const teamName = state.teams[state.activeTeamIndex].name;
+          dom.aiStatusBanner.className = 'w-full text-center text-base sm:text-lg font-extrabold text-emerald-800 min-h-[26px]';
+          dom.aiStatusBanner.textContent = byAI
+            ? `✅ AI XÁC NHẬN CHÍNH XÁC! +10 điểm cho ${teamName} — Đang lật ô trên bảng chính...`
+            : `✅ CHÍNH XÁC! Đáp án: ${row.displayWord} (+10 điểm cho ${teamName})`;
+          showToast(`✅ Chính xác! Hàng ${row.id}: ${row.displayWord} (+10đ cho ${teamName})`);
+        } else {
+          state.rowStatus[rowId] = 'revealed';
+          rowEl.classList.add('is-revealed-only');
+          dom.aiStatusBanner.className = 'w-full text-center text-sm sm:text-base font-bold text-velvet-700 min-h-[26px]';
+          dom.aiStatusBanner.textContent = `👁️ Lật đáp án Hàng ${String(row.id).padStart(2, '0')}: ${row.displayWord} (0 điểm)`;
+          showToast(`Đã lật đáp án Hàng ${row.id}: ${row.displayWord} (0 điểm).`);
+        }
+
+        // Làm sáng từng ô trong dãy xem trước
+        const slots = dom.modalLetterSlots.children;
+        for (let i = 0; i < row.answer.length; i++) {
+          setTimeout(() => {
+            if (!slots[i]) return;
+            slots[i].classList.remove('is-hearing', 'is-wrong');
+            slots[i].classList.add('is-correct');
+            if (slots[i].childNodes[0] && slots[i].childNodes[0].nodeType === 3) {
+              slots[i].childNodes[0].nodeValue = row.answer[i];
+            } else {
+              slots[i].insertBefore(document.createTextNode(row.answer[i]), slots[i].firstChild);
+            }
+            SoundEngine.playTileFlip(i);
+          }, i * 45);
+        }
+
+        dom.modalFunFact.innerHTML = `<strong>Đáp án chuẩn: ${row.displayWord}</strong> — ${row.funFact}`;
+        dom.modalFunFact.classList.remove('hidden');
+        updateProgressUI();
+
+        // Tự động đóng modal sau 1.5s và lật 3D hàng đó trên bảng chính kèm pháo hoa vàng
+        if (state.autoCloseTimer) clearTimeout(state.autoCloseTimer);
+        state.autoCloseTimer = setTimeout(() => {
+          state.autoCloseTimer = null;
+          dom.questionModal.classList.add('hidden');
+          flipMainBoardRow(rowId, true, state.keywordSolved);
+          if (awardPoints) {
+            const targetRowEl = rowEls.get(rowId);
+            if (targetRowEl) {
+              const rect = targetRowEl.getBoundingClientRect();
+              spawnGoldFirework(rect.left + rect.width * 0.5, rect.top + rect.height * 0.5, 22, 210);
+            }
+          }
+        }, 1500);
+      }
+
+      /* =====================================================================
+         10. CỬA SỔ GIẢI TỪ KHÓA HÀNG DỌC ("SỢI POLYMER" +30Đ)
+      ===================================================================== */
+      function renderKeywordSlots(mode = 'hint', spokenPreview = '') {
+        dom.kwLetterSlots.innerHTML = '';
+        const cleanedChars = spokenPreview
+          .toUpperCase()
+          .replace(/[^A-ZÀÁẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬÈÉẺẼẸÊẾỀỂỄỆÌÍỈĨỊÒÓỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÙÚỦŨỤƯỨỪỬỮỰỲÝỶỸỴĐ]/g, '')
+          .split('');
+
+        KEYWORD_LETTERS.forEach((ch, idx) => {
+          if (idx === 3) {
+            const gap = document.createElement('div');
+            gap.className = 'w-3 sm:w-5';
+            dom.kwLetterSlots.appendChild(gap);
+          }
+
+          const row = CROSSWORD_DATA[idx];
+          const isRowOpened = state.rowStatus[row.id] === 'solved' || state.rowStatus[row.id] === 'revealed';
+
+          const slot = document.createElement('div');
+          let cls = 'live-slot is-key';
+          let displayChar = '';
+
+          if (mode === 'solved' || state.keywordSolved) {
+            cls += ' is-correct';
+            displayChar = ch;
+          } else if (mode === 'hearing') {
+            cls += ' is-hearing';
+            displayChar = cleanedChars[idx] || (isRowOpened ? row.answer[row.keyIndex] : '');
+          } else if (mode === 'wrong') {
+            cls += ' is-wrong';
+            displayChar = cleanedChars[idx] || (isRowOpened ? row.answer[row.keyIndex] : '');
+          } else if (isRowOpened) {
+            cls += ' is-correct';
+            displayChar = row.answer[row.keyIndex];
+          }
+
+          slot.className = cls;
+          slot.textContent = displayChar;
+          dom.kwLetterSlots.appendChild(slot);
+        });
+      }
+
+      function renderKeywordTriedWrongs() {
+        if (state.kwTriedWrongs.length === 0) {
+          dom.kwTriedWrap.classList.add('hidden');
+          dom.kwTriedList.innerHTML = '';
+          return;
+        }
+        dom.kwTriedWrap.classList.remove('hidden');
+        dom.kwTriedList.innerHTML = state.kwTriedWrongs
+          .map((txt) => `<span class="px-2.5 py-0.5 rounded-full bg-rose-100 border border-rose-300 text-rose-900 text-xs font-semibold line-through">${txt}</span>`)
+          .join('');
+      }
+
+      function openKeywordModal() {
+        stopListening();
+        stopTimer();
+        SoundEngine.playSelectRow();
+
+        const opened = countOpenedRows();
+        dom.kwHintNote.textContent = opened === 0
+          ? 'Chưa mở hàng ngang nào — thử sức chinh phục ngay Từ khóa 10 chữ cái!'
+          : `Đã tự động điền ${opened}/10 chữ cái gợi ý từ các hàng ngang đã mở!`;
+        dom.kwAiStatus.className = 'text-sm sm:text-base font-semibold text-wineink-mid min-h-[24px]';
+        dom.kwAiStatus.textContent = 'Bấm nút Mic (hoặc phím Space) và đọc to Từ khóa 10 chữ cái!';
+
+        renderKeywordSlots('hint');
+        renderKeywordTriedWrongs();
+        renderAllTeamControls();
+        dom.keywordModal.classList.remove('hidden');
+      }
+
+      function closeKeywordModal() {
+        stopListening();
+        dom.keywordModal.classList.add('hidden');
+      }
+
+      function solveKeywordVictory(awardPoints = true, byAI = false) {
+        stopListening();
+        stopTimer();
+
+        if (!state.keywordSolved) {
+          state.keywordSolved = true;
+          if (awardPoints) {
+            state.teams[state.activeTeamIndex].score += 30;
+            renderAllTeamControls();
+          }
+        }
+
+        renderKeywordSlots('solved');
+        dom.kwAiStatus.className = 'text-base sm:text-lg font-extrabold text-emerald-800 min-h-[24px]';
+        dom.kwAiStatus.textContent = `${byAI ? '✅ AI XÁC NHẬN CHÍNH XÁC!' : '🏆 CHÍNH XÁC!'} Từ khóa là SỢI POLYMER (+30đ cho ${state.teams[state.activeTeamIndex].name})`;
+
+        // Mở tất cả 10 hàng và làm nổi bật cột Từ Khóa SỢI POLYMER
+        CROSSWORD_DATA.forEach((row, rIdx) => {
+          const st = state.rowStatus[row.id];
+          const rowEl = rowEls.get(row.id);
+          if (st !== 'solved') {
+            state.rowStatus[row.id] = 'revealed';
+            rowEl.classList.add('is-revealed-only');
+          }
+          setTimeout(() => {
+            flipMainBoardRow(row.id, rIdx % 2 === 0, true);
+          }, rIdx * 75);
+        });
+
+        updateProgressUI();
+        SoundEngine.playVictoryChord();
+        launchVictoryFireworks();
+
+        const maxScore = Math.max(...state.teams.map((t) => t.score));
+        const winners = state.teams.filter((t) => t.score === maxScore).map((t) => t.name);
+        dom.victoryWinnerLine.textContent = `Dẫn đầu bảng điểm: ${winners.join(' & ')} (${maxScore} điểm)`;
+
+        setTimeout(() => {
+          dom.keywordModal.classList.add('hidden');
+          dom.victoryModal.classList.remove('hidden');
+        }, 1450);
+      }
+
+      /* =====================================================================
+         11. WEB SPEECH API — AI NHẬN DIỆN GIỌNG NÓI TIẾNG VIỆT (AUDIO DUCKING)
+      ===================================================================== */
+      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+      let recognition = null;
+
+      function setMicVisual(mode, active) {
+        state.isListening = active;
+        SoundEngine.setMicDucking(active);
+
+        if (mode === 'row') {
+          dom.btnVoiceAnswer.classList.toggle('btn-mic-live', active);
+          dom.micWaveWrap.classList.toggle('hidden', !active);
+          dom.micWaveWrap.classList.toggle('flex', active);
+          dom.micWaveWrap.classList.toggle('is-listening', active);
+          dom.micBtnIcon.textContent = active ? '🔴' : '🎙️';
+          dom.micBtnLabel.textContent = active
+            ? 'AI ĐANG LẮNG NGHE... (Bấm để dừng)'
+            : 'BẤM ĐỌC ĐÁP ÁN — AI TỰ NHẬN DIỆN';
+        } else if (mode === 'keyword') {
+          dom.btnKwVoice.classList.toggle('btn-mic-live', active);
+          dom.kwWaveWrap.classList.toggle('hidden', !active);
+          dom.kwWaveWrap.classList.toggle('flex', active);
+          dom.kwWaveWrap.classList.toggle('is-listening', active);
+          dom.kwMicIcon.textContent = active ? '🔴' : '🎙️';
+          dom.kwMicLabel.textContent = active
+            ? 'AI ĐANG LẮNG NGHE... (Bấm để dừng)'
+            : 'BẤM ĐỌC TỪ KHÓA — AI TỰ NHẬN DIỆN';
+        }
+      }
+
+      function stopListening() {
+        const prevMode = state.micMode;
+        if (recognition) {
+          try {
+            recognition.onresult = null;
+            recognition.onerror = null;
+            recognition.onend = null;
+            recognition.stop();
+          } catch (_) {}
+          recognition = null;
+        }
+        if (prevMode) setMicVisual(prevMode, false);
+        state.micMode = null;
+      }
+
+      function handleRowVoiceFinal(transcripts) {
+        const row = getRow(state.activeRowId);
+        if (!row) return;
+        const primaryText = (transcripts[0] || '').trim();
+        if (!primaryText) return;
+
+        if (isPhoneticMatch(transcripts, row.answer, row.aliases)) {
+          completeRowSuccess(row.id, true, true);
+        } else {
+          SoundEngine.playWrong();
+          renderLiveRowSlots(row, 'wrong', primaryText);
+          dom.modalLetterSlots.classList.remove('anim-shake');
+          void dom.modalLetterSlots.offsetWidth;
+          dom.modalLetterSlots.classList.add('anim-shake');
+
+          dom.aiStatusBanner.className = 'w-full text-center text-sm sm:text-base font-bold text-rose-800 min-h-[26px]';
+          dom.aiStatusBanner.textContent = `❌ AI nhận diện: "${primaryText}" — Chưa chính xác! Mời bạn tiếp theo trả lời!`;
+
+          const list = state.rowTriedWrongs[row.id];
+          if (!list.some((x) => normalizePhonetic(x) === normalizePhonetic(primaryText))) {
+            list.push(primaryText);
+            renderTriedWrongsForRow(row.id);
+          }
+        }
+      }
+
+      function handleKeywordVoiceFinal(transcripts) {
+        const primaryText = (transcripts[0] || '').trim();
+        if (!primaryText) return;
+
+        if (isPhoneticMatch(transcripts, 'SOIPOLYMER', KEYWORD_ALIASES)) {
+          solveKeywordVictory(true, true);
+        } else {
+          SoundEngine.playWrong();
+          renderKeywordSlots('wrong', primaryText);
+          dom.kwLetterSlots.classList.remove('anim-shake');
+          void dom.kwLetterSlots.offsetWidth;
+          dom.kwLetterSlots.classList.add('anim-shake');
+
+          dom.kwAiStatus.className = 'text-sm sm:text-base font-bold text-rose-800 min-h-[24px]';
+          dom.kwAiStatus.textContent = `❌ AI nhận diện: "${primaryText}" — Chưa khớp Từ khóa! Mời tổ khác đoán tiếp!`;
+
+          if (!state.kwTriedWrongs.some((x) => normalizePhonetic(x) === normalizePhonetic(primaryText))) {
+            state.kwTriedWrongs.push(primaryText);
+            renderKeywordTriedWrongs();
+          }
+        }
+      }
+
+      function startVoiceRecognition(mode) {
+        if (state.isListening && state.micMode === mode) {
+          stopListening();
+          SoundEngine.playMicStop();
+          return;
+        }
+        stopListening();
+
+        if (!SpeechRecognitionAPI) {
+          const msg = '⚠️ Trình duyệt hiện chưa hỗ trợ Microphone AI — hãy mở bằng Chrome / Edge / Cốc Cốc qua HTTPS hoặc dùng nút MC 1 chạm bên dưới!';
+          if (mode === 'row') {
+            dom.aiStatusBanner.className = 'w-full text-center text-sm font-bold text-amber-900 min-h-[26px]';
+            dom.aiStatusBanner.textContent = msg;
+          } else {
+            dom.kwAiStatus.className = 'text-sm font-bold text-amber-900 min-h-[24px]';
+            dom.kwAiStatus.textContent = msg;
+          }
+          showToast('Hãy mở bằng Chrome/Edge/Cốc Cốc (HTTPS) để dùng Mic AI, hoặc bấm nút MC bên dưới!');
+          return;
+        }
+
+        if (mode === 'row') {
+          const row = getRow(state.activeRowId);
+          if (!row) return;
+          if (state.rowStatus[row.id] === 'solved' || state.rowStatus[row.id] === 'revealed') {
+            showToast('Hàng ngang này đã mở đáp án rồi!');
+            return;
+          }
+        }
+
+        try {
+          recognition = new SpeechRecognitionAPI();
+          recognition.lang = 'vi-VN';
+          recognition.interimResults = true;
+          recognition.maxAlternatives = 5;
+          recognition.continuous = false;
+
+          state.micMode = mode;
+          setMicVisual(mode, true);
+          SoundEngine.playMicStart();
+
+          if (mode === 'row') {
+            dom.aiStatusBanner.className = 'w-full text-center text-sm sm:text-base font-bold text-velvet-700 min-h-[26px]';
+            dom.aiStatusBanner.textContent = '🎙️ AI đang lắng nghe... Mời học sinh đọc to, rõ đáp án!';
+          } else {
+            dom.kwAiStatus.className = 'text-sm sm:text-base font-bold text-velvet-700 min-h-[24px]';
+            dom.kwAiStatus.textContent = '🎙️ AI đang lắng nghe... Mời bạn đọc to Từ khóa hàng dọc!';
+          }
+
+          let gotFinal = false;
+
+          recognition.onresult = (event) => {
+            const res = event.results[event.results.length - 1];
+            const alts = [];
+            for (let i = 0; i < res.length; i++) alts.push(res[i].transcript);
+            const liveText = (alts[0] || '').trim();
+
+            if (mode === 'row') {
+              const row = getRow(state.activeRowId);
+              if (row) renderLiveRowSlots(row, 'hearing', liveText);
+              dom.aiStatusBanner.textContent = `AI đang nghe: "${liveText}"...`;
+            } else {
+              renderKeywordSlots('hearing', liveText);
+              dom.kwAiStatus.textContent = `AI đang nghe: "${liveText}"...`;
+            }
+
+            if (res.isFinal) {
+              gotFinal = true;
+              const finishedMode = state.micMode;
+              stopListening();
+              if (finishedMode === 'row') handleRowVoiceFinal(alts);
+              else handleKeywordVoiceFinal(alts);
+            }
+          };
+
+          recognition.onerror = (event) => {
+            const errType = event.error || '';
+            const curMode = state.micMode;
+            stopListening();
+            let friendly = 'Chưa nghe rõ — bấm Mic đọc lại hoặc dùng nút MC 1 chạm bên dưới.';
+            if (errType === 'not-allowed' || errType === 'service-not-allowed') {
+              friendly = '⚠️ Trình duyệt chưa cấp quyền Microphone — hãy mở bằng Chrome/Edge/Cốc Cốc qua HTTPS và cho phép Mic, hoặc dùng nút MC bên dưới.';
+            } else if (errType === 'no-speech') {
+              friendly = 'Chưa nghe thấy giọng nói — hãy bấm Mic và đọc rõ hơn một chút nhé!';
+            }
+            if (curMode === 'row') {
+              dom.aiStatusBanner.className = 'w-full text-center text-sm font-bold text-amber-900 min-h-[26px]';
+              dom.aiStatusBanner.textContent = friendly;
+            } else if (curMode === 'keyword') {
+              dom.kwAiStatus.className = 'text-sm font-bold text-amber-900 min-h-[24px]';
+              dom.kwAiStatus.textContent = friendly;
+            }
+          };
+
+          recognition.onend = () => {
+            if (!gotFinal && state.isListening) {
+              stopListening();
+              SoundEngine.playMicStop();
+            }
+          };
+
+          recognition.start();
+        } catch (_) {
+          stopListening();
+          showToast('Không thể khởi động Microphone — hãy dùng Chrome/Edge (HTTPS) hoặc nút MC bên dưới.');
+        }
+      }
+
+      /* =====================================================================
+         12. CHƠI LẠI TỪ ĐẦU
+      ===================================================================== */
+      function resetEntireGame() {
+        if (state.autoCloseTimer) {
+          clearTimeout(state.autoCloseTimer);
+          state.autoCloseTimer = null;
+        }
+        stopListening();
+        stopTimer();
+        state.activeRowId = null;
+        state.keywordSolved = false;
+        state.activeTeamIndex = 0;
+        state.teams.forEach((t) => { t.score = 0; });
+        CROSSWORD_DATA.forEach((r) => {
+          state.rowStatus[r.id] = 'idle';
+          state.rowTriedWrongs[r.id] = [];
+        });
+        state.kwTriedWrongs = [];
+
+        buildCrosswordBoard();
+        renderAllTeamControls();
+        updateProgressUI();
+
+        dom.questionModal.classList.add('hidden');
+        dom.keywordModal.classList.add('hidden');
+        dom.victoryModal.classList.add('hidden');
+        dom.resetModal.classList.add('hidden');
+
+        showToast('↺ Đã đặt lại toàn bộ 10 hàng ngang và điểm số 4 tổ!');
+      }
+
+      /* =====================================================================
+         13. SỰ KIỆN TƯƠNG TÁC & PHÍM TẮT
+      ===================================================================== */
+      // Tự động mở khóa AudioContext ở lần chạm đầu tiên
+      function unlockAudioFirstTap() {
+        SoundEngine.ensureCtx();
+        window.removeEventListener('pointerdown', unlockAudioFirstTap);
+        window.removeEventListener('keydown', unlockAudioFirstTap);
+      }
+      window.addEventListener('pointerdown', unlockAudioFirstTap, { passive: true });
+      window.addEventListener('keydown', unlockAudioFirstTap);
+
+      // Tầng 1 -> Tầng 2: Fade + scale nhẹ nhàng, tự động bật nhạc nền hồi hộp trầm ấm
+      dom.btnReadyStart.addEventListener('click', () => {
+        if (state.gatePassed) return;
+        state.gatePassed = true;
+
+        SoundEngine.ensureCtx();
+        SoundEngine.playReadyChime();
+        setTimeout(() => SoundEngine.startBgm(), 240);
+
+        dom.readyGate.classList.add('is-exiting');
+        dom.mainStage.classList.remove('hidden');
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            dom.mainStage.classList.add('is-visible');
+          });
+        });
+
+        spawnGoldFirework(canvasW * 0.50, canvasH * 0.42, 22, 220);
+
+        setTimeout(() => {
+          dom.readyGate.classList.add('hidden');
+          showToast('✨ Bảng ô chữ đã sẵn sàng! Mời chọn bất kỳ hàng ngang nào từ 01 đến 10.');
+        }, 540);
+      });
+
+      // Thanh điều khiển trên cùng
+      dom.btnToggleBgm.addEventListener('click', () => {
+        const on = SoundEngine.toggleBgm();
+        dom.btnToggleBgm.textContent = on ? '🎵 Nhạc nền: Bật' : '🔇 Nhạc nền: Tắt';
+      });
+
+      dom.btnToggleSfx.addEventListener('click', () => {
+        const on = SoundEngine.toggleSfx();
+        dom.btnToggleSfx.textContent = on ? '🔊 SFX: Bật' : '🔇 SFX: Tắt';
+      });
+
+      dom.btnPerfMode.addEventListener('click', () => {
+        isLiteMode = !isLiteMode;
+        document.body.classList.toggle('lite-mode', isLiteMode);
+        dom.btnPerfMode.textContent = isLiteMode ? '✨ Hiệu ứng: Nhẹ' : '✨ Hiệu ứng: Cao';
+        showToast(isLiteMode ? 'Đã chuyển sang chế độ Hiệu ứng Nhẹ tối ưu tối đa FPS.' : 'Đã bật chế độ Hiệu ứng Cao 60–120 FPS.');
+      });
+
+      dom.btnOpenReset.addEventListener('click', () => dom.resetModal.classList.remove('hidden'));
+      dom.btnCancelReset.addEventListener('click', () => dom.resetModal.classList.add('hidden'));
+      dom.btnConfirmReset.addEventListener('click', resetEntireGame);
+
+      // Toàn màn hình an toàn async/await + try/catch + kiểm tra document.fullscreenEnabled
+      dom.btnFullscreen.addEventListener('click', async () => {
+        try {
+          if (!document.fullscreenElement) {
+            if (!document.fullscreenEnabled || typeof document.documentElement.requestFullscreen !== 'function') {
+              showToast('Khung xem trước hiện hạn chế toàn màn hình — bạn hãy nhấn phím F11 trên máy tính nhé!');
+              return;
+            }
+            await document.documentElement.requestFullscreen();
+          } else if (typeof document.exitFullscreen === 'function') {
+            await document.exitFullscreen();
+          }
+        } catch (_) {
+          showToast('Trình duyệt hạn chế toàn màn hình trong khung này — hãy nhấn phím F11 nhé!');
+        }
+      });
+
+      document.addEventListener('fullscreenchange', () => {
+        dom.btnFullscreen.textContent = document.fullscreenElement ? '⛶ Thoát Toàn Màn Hình' : '⛶ Toàn Màn Hình';
+      });
+
+      // Tầng 3: Question Modal
+      dom.btnModalTimerToggle.addEventListener('click', () => {
+        if (state.timerRunning) stopTimer();
+        else startTimer();
+      });
+
+      dom.btnModalTimerReset.addEventListener('click', () => {
+        resetTimer(false);
+        SoundEngine.playSelectRow();
+      });
+
+      dom.btnVoiceAnswer.addEventListener('click', () => startVoiceRecognition('row'));
+
+      dom.btnMcCorrect.addEventListener('click', () => {
+        if (state.activeRowId) completeRowSuccess(state.activeRowId, true, false);
+      });
+
+      dom.btnMcNextStudent.addEventListener('click', () => {
+        const row = getRow(state.activeRowId);
+        if (!row) return;
+        if (state.rowStatus[row.id] === 'solved' || state.rowStatus[row.id] === 'revealed') {
+          showToast('Hàng ngang này đã mở đáp án rồi!');
+          return;
+        }
+        stopListening();
+        renderLiveRowSlots(row, 'empty');
+        dom.aiStatusBanner.className = 'w-full text-center text-sm sm:text-base font-semibold text-wineink-mid min-h-[26px]';
+        dom.aiStatusBanner.textContent = '🔄 Đã đặt lại 15 giây! Mời bạn tiếp theo bấm Mic đọc đáp án!';
+        resetTimer(true);
+        SoundEngine.playSelectRow();
+      });
+
+      dom.btnMcRevealZero.addEventListener('click', () => {
+        if (state.activeRowId) completeRowSuccess(state.activeRowId, false, false);
+      });
+
+      dom.btnMcCloseModal.addEventListener('click', closeQuestionModal);
+
+      // Cửa sổ Giải Từ Khóa
+      dom.btnOpenKeywordTop.addEventListener('click', openKeywordModal);
+      dom.btnOpenKeywordFooter.addEventListener('click', openKeywordModal);
+      dom.btnKwVoice.addEventListener('click', () => startVoiceRecognition('keyword'));
+      dom.btnKwMcWin.addEventListener('click', () => solveKeywordVictory(true, false));
+
+      dom.btnKwMcWrong.addEventListener('click', () => {
+        stopListening();
+        SoundEngine.playWrong();
+        dom.kwLetterSlots.classList.remove('anim-shake');
+        void dom.kwLetterSlots.offsetWidth;
+        dom.kwLetterSlots.classList.add('anim-shake');
+        dom.kwAiStatus.className = 'text-sm sm:text-base font-bold text-rose-800 min-h-[24px]';
+        dom.kwAiStatus.textContent = '❌ Chưa chính xác! Mời tổ tiếp theo giành quyền đoán Từ khóa!';
+        showToast('❌ Chưa chính xác — mời tổ khác tiếp tục giải Từ khóa!');
+      });
+
+      dom.btnKwClose.addEventListener('click', closeKeywordModal);
+
+      // Modal Chiến Thắng
+      dom.btnVictoryViewBoard.addEventListener('click', () => dom.victoryModal.classList.add('hidden'));
+      dom.btnVictoryFireworks.addEventListener('click', () => {
+        SoundEngine.playVictoryChord();
+        launchVictoryFireworks();
+      });
+      dom.btnVictoryReplay.addEventListener('click', resetEntireGame);
+
+      // Phím tắt tiện lợi (Space kích hoạt Mic khi mở Modal, Esc đóng Modal, F toàn màn hình)
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeQuestionModal();
+          closeKeywordModal();
+          dom.victoryModal.classList.add('hidden');
+          dom.resetModal.classList.add('hidden');
+          return;
+        }
+
+        if (e.code === 'Space') {
+          if (!dom.questionModal.classList.contains('hidden')) {
+            e.preventDefault();
+            startVoiceRecognition('row');
+          } else if (!dom.keywordModal.classList.contains('hidden')) {
+            e.preventDefault();
+            startVoiceRecognition('keyword');
+          }
+          return;
+        }
+
+        if ((e.key === 'f' || e.key === 'F') && state.gatePassed) {
+          dom.btnFullscreen.click();
+        }
+      });
+
+      /* =====================================================================
+         14. KHỞI TẠO HỆ THỐNG SAU WINDOW.ONLOAD
+      ===================================================================== */
+      window.addEventListener('resize', resizeCanvas, { passive: true });
+
+      window.onload = function () {
+        resizeCanvas();
+        initAmbientPool();
+        buildCrosswordBoard();
+        renderAllTeamControls();
+        updateProgressUI();
+        updateTimerUI();
+        startLoop();
+      };
+    })();
+  </script>
+</body>
+</html>
